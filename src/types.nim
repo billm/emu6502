@@ -12,7 +12,7 @@ type
     I*: bool # 2 bit - Interrupt Disable
     D*: bool # 3 bit - Decimal Mode
     B*: bool # 4 bit - Break Command
-    U*: bool # 5 bit - Overflow flag
-    V*: bool # 6 bit - 
+    U*: bool # 5 bit - Unused
+    V*: bool # 6 bit - Overflow flag
     N*: bool # 7 bit - Negative flag
     memory*: Memory
