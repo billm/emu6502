@@ -30,8 +30,13 @@ when isMainModule:
   else: 
     echo "derp derp"
 
+  # Copy our code into memory
+  for index, val in code:
+    mem[index + 0x300] = val
+    
+    
   # Initialize the CPU
-  cpu.initialize(mem)
+  cpu.initialize(mem, 0x300)
 
   # Let's run some code!
-  cpu.execute(code)
+  cpu.execute()

@@ -2,6 +2,7 @@ import strformat
 import strutils
 
 import types
+import memory
 export types.CPU
 export types.Memory
 
@@ -46,69 +47,102 @@ proc debug*(cpu: CPU) =
   echo "========="
 
 
+proc printOpCode(cpu: CPU, val: uint8, assembly: string) =
+  echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex}   {assembly}"
+
+proc printOpCode(cpu: CPU, val: uint16, assembly: string) =
+  echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex} {assembly}"
+
+
 # Execute the opcode bytestream
-proc execute*(cpu: var CPU, code: seq) =
+proc execute*(cpu: var CPU) =
 
   let mem = cpu.memory
-  cpu.PC=0
 
   echo "Registers initialized as:"
   cpu.debug
 
-  while cpu.PC < cast[uint16](len(code)):
+  while true:
 #    echo &"PC = {cpu.PC:04}"
-    case code[cpu.PC]
+    case mem[cpu.PC]
     of 0x84:
-      # STY
-      let loc = code[cpu.PC+1]
-      echo &"{code[cpu.PC].toHex} {loc.toHex} STY ${loc:02}"
+      # STY - zeropage
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"STY ${loc:02}")
       mem[loc] = cpu.Y
       cpu.PC += 2
     of 0x85:
-      # STA
-      let loc = code[cpu.PC+1]
-      echo &"{code[cpu.PC].toHex} {loc.toHex} STA ${loc:02}"
+      # STA - zeropage
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"STA ${loc:02}")
       mem[loc] = cpu.A
       cpu.PC += 2
     of 0x86:
-      # STX
-      let loc = code[cpu.PC+1]
-      echo &"{code[cpu.PC].toHex} {loc.toHex} STX ${loc:02}"
+      # STX - zeropage
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"STX ${loc:02}")
       mem[loc] = cpu.X
       cpu.PC += 2
+    of 0xa0:
+      # LDY - immediate
+      let val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDY ${val:02}")
+      cpu.Y = val
+      cpu.PC += 2
+    of 0xa2:
+      # LDX - immediate
+      let val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDX ${val:02}")
+      cpu.X = val
+      cpu.PC += 2
     of 0xa4:
-      # LDY
-      let loc = code[cpu.PC+1]
-      echo &"{code[cpu.PC].toHex} {loc.toHex} LDY ${loc:02}"
+      # LDY - zeropage
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"LDY ${loc:02}")
       cpu.Y = mem[loc]
       cpu.PC += 2
     of 0xa5:
-      # LDA
-      let loc = code[cpu.PC+1]
-      echo &"{code[cpu.PC].toHex} {loc.toHex} LDA ${loc:02}"
+      # LDA - zeropage
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"LDA ${loc:02}")
       cpu.A = mem[loc]
       cpu.PC += 2
     of 0xa6:
-      # LDX
-      let loc = code[cpu.PC+1]
-      echo &"{code[cpu.PC].toHex} {loc.toHex} LDX ${loc:02}"
+      # LDX - zeropage
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"LDX ${loc:02}")
       cpu.X = mem[loc]
       cpu.PC += 2
+    of 0xa9:
+      # LDA - immediate
+      let val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDA ${val:02}")
+      cpu.A = val
+      cpu.PC += 2
+    of 0xbd:
+      # LDA - absolute, X
+      # TODO wtf am I supposed to do with X? 
+      let loc = mem.read16(cpu.PC+1)
+      cpu.printOpCode(loc, &"LDA ${loc:04}, X")
+      cpu.A = mem[loc]
+      cpu.PC += 3
+
     else:
-      echo &"Discarding unknown op code: {code[cpu.PC].toHex} @ PC: 0x{cpu.PC.toHex}"
-      cpu.PC += 1
-      discard
+      echo &"Unknown opcode: {mem[cpu.PC].toHex} @ PC: 0x{cpu.PC.toHex}"
+      echo "Exiting..."
+      break
 
   debug(cpu)
   echo "Done"
 
 # Set up the CPU, registers and memory as it should be
 # on initialization or reset
-proc initialize*(cpu: var CPU, mem: Memory) =
+proc initialize*(cpu: var CPU, mem: Memory, PC: uint16) =
   cpu.A = 0x41
   cpu.X = 0x42
   cpu.Y = 0x43
   cpu.C = false
+  cpu.PC = PC
   cpu.memory = mem
   echo "Initializing first 8 bytes of memory to 0xfeedface 0xdeadbeef"
   cpu.memory[0] = 0xfe
