@@ -19,6 +19,9 @@ nimble build
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
+## Thanks
+Many thanks to Dennis Felsing for NimES (<https://github.com/def-/nimes>) from which I took much inspiration and code.
+
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
