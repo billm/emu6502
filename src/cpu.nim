@@ -3,9 +3,17 @@ import strutils
 
 import types
 import memory
+
 export types.CPU
 export types.Memory
 
+let debugOpcodes = false
+
+proc setZ(cpu: var CPU, val: uint8) =
+  cpu.Z = val == 0
+
+proc setN(cpu: var CPU, val: uint8) =
+  cpu.N = (val and 0x80) != 0
 
 # Return a specific bit from provided uint8
 proc bit(val: uint8, bit: range[0..7]): bool =
@@ -44,27 +52,47 @@ proc debug*(cpu: CPU) =
 
   echo "8 bytes of RAM at memory address 0000:"
   echo &"0001: {cpu.memory[0].toHex} {cpu.memory[1].toHex} {cpu.memory[2].toHex} {cpu.memory[3].toHex}  {cpu.memory[4].toHex} {cpu.memory[5].toHex} {cpu.memory[6].toHex} {cpu.memory[7].toHex}"
+  echo "4 bytes of RAM at memory address FDEC (should get an error):"
+  echo &"FDEC: {cpu.memory[0xFDEC].toHex} {cpu.memory[0xFDED].toHex} {cpu.memory[0xFDEE].toHex} {cpu.memory[0xFDEF].toHex}"
   echo "========="
 
+proc printOpCode(cpu: CPU, assembly: string) =
+  if debugOpcodes:
+    echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex}      {assembly}"
 
 proc printOpCode(cpu: CPU, val: uint8, assembly: string) =
-  echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex}   {assembly}"
+  if debugOpcodes:
+    echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex}   {assembly}"
 
 proc printOpCode(cpu: CPU, val: uint16, assembly: string) =
-  echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex} {assembly}"
+  if debugOpcodes:
+    echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex} {assembly}"
 
 
 # Execute the opcode bytestream
 proc execute*(cpu: var CPU) =
 
-  let mem = cpu.memory
+  var mem = cpu.memory
 
   echo "Registers initialized as:"
   cpu.debug
 
   while true:
-#    echo &"PC = {cpu.PC:04}"
     case mem[cpu.PC]
+    of 0x00:
+      cpu.printOpCode(&"BRK")
+      break
+    of 0x20:
+      # JSR - absolute
+      # Jump to New Location Saving Return Address
+      # TODO - actually put PC on the stack
+      let val = mem.read16(cpu.PC+1)
+      cpu.printOpCode(val, &"JSR ${val.toHex:04}")
+      # TODO - this is a hack to get JSR 0xFDED to work since the memory model
+      # doesn't have access to the CPU. Need to figure out a proper
+      # implementation.
+      mem[val] = cpu.A 
+      cpu.PC += 3
     of 0x84:
       # STY - zeropage
       let loc = mem[cpu.PC+1]
@@ -121,18 +149,48 @@ proc execute*(cpu: var CPU) =
       cpu.PC += 2
     of 0xbd:
       # LDA - absolute, X
-      # TODO wtf am I supposed to do with X? 
-      let loc = mem.read16(cpu.PC+1)
-      cpu.printOpCode(loc, &"LDA ${loc:04}, X")
-      cpu.A = mem[loc]
+      var val = mem.read16(cpu.PC+1)
+      cpu.printOpCode(val, &"LDA ${val:04}, X")
+      cpu.A = mem[val + cpu.X]
+
+      # Update Z and N flags if needed
+      cpu.setZ(cpu.A)
+      cpu.setN(cpu.A)
       cpu.PC += 3
+    of 0xd0:
+      # BNE - Relative
+      var loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"BNE ${loc:02}")
+      cpu.PC += 2
+      if not cpu.Z:
+        # TODO this is fugly
+        if loc > cast[uint8](127):
+          loc = cast[uint8](256)-loc
+          cpu.PC -= loc
+        else:
+          cpu.PC += loc
+    of 0xe8:
+      # INX
+      cpu.printOpCode(&"INX")
+      cpu.X += 1
+      cpu.setZ(cpu.X)
+      cpu.setN(cpu.X)
+      cpu.PC += 1
+    of 0xf0:
+      # BEQ - Relative
+      # TODO handle negative jumps
+      let loc = mem[cpu.PC+1]
+      cpu.printOpCode(loc, &"BEQ ${loc:02}")
+      cpu.PC += 2
+      if cpu.Z:
+        cpu.PC += loc
 
     else:
-      echo &"Unknown opcode: {mem[cpu.PC].toHex} @ PC: 0x{cpu.PC.toHex}"
+      echo &"\r\nUnknown opcode: {mem[cpu.PC].toHex} @ PC: 0x{cpu.PC.toHex}"
       echo "Exiting..."
       break
 
-  debug(cpu)
+  cpu.debug
   echo "Done"
 
 # Set up the CPU, registers and memory as it should be

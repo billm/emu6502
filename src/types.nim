@@ -1,5 +1,9 @@
 type
-  Memory* = ref array[16384, uint8]
+
+  BackingMemory* = array[65535, uint8]
+
+  Memory* = ref object
+    mem*: BackingMemory
 
   CPU* = ref object
     # Registers

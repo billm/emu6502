@@ -3,6 +3,7 @@ import strformat
 import strutils
 
 import cpu as processor
+import memory
 
 
 when isMainModule:
@@ -30,11 +31,11 @@ when isMainModule:
   else: 
     echo "derp derp"
 
-  # Copy our code into memory
-  for index, val in code:
-    mem[index + 0x300] = val
     
-    
+  # Initialize memory
+  mem.initialize(code, 0x300)
+  #mem.dump()
+  
   # Initialize the CPU
   cpu.initialize(mem, 0x300)
 
