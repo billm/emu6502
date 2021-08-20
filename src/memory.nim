@@ -25,7 +25,7 @@ proc `[]`*(memory: Memory, adr: uint16): uint8 =
 proc `[]=`*(memory: var Memory, adr: uint16, val: uint8) =
   case adr
   of 0x36:
-    # Apple II print char in A - note: the cpu module implements this wrong
+    # Apple II print char in A
     if (val == 0x0d):
       print("\r\n")
     else:
