@@ -12,7 +12,11 @@ template print(s: varargs[string, `$`]) =
 proc `[]`*(memory: Memory, adr: uint16): uint8 =
   case adr
   of 0xfded:
-    echo "ERROR"
+    result = 0x85 # STA
+  of 0xfdee:
+    result = 0x36 # $36
+  of 0xfdef:
+    result = 0x60 # RTS
   else:
     result = memory.mem[adr]
 
@@ -20,7 +24,7 @@ proc `[]`*(memory: Memory, adr: uint16): uint8 =
 # Write a byte of memory to adr
 proc `[]=`*(memory: var Memory, adr: uint16, val: uint8) =
   case adr
-  of 0xfded:
+  of 0x36:
     # Apple II print char in A - note: the cpu module implements this wrong
     if (val == 0x0d):
       print("\r\n")

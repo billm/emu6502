@@ -19,6 +19,24 @@ proc setN(cpu: var CPU, val: uint8) =
 proc bit(val: uint8, bit: range[0..7]): bool =
   ((val shr bit) and 1) != 0
 
+# Push a byte onto the stack
+proc push(cpu: var CPU, val: uint8) =
+  cpu.memory[cpu.SP.uint16 or 0x100] = val
+  dec cpu.SP
+
+# Pull a byte from the stack
+proc pull(cpu: var CPU): uint8 =
+  inc cpu.SP
+  result = cpu.memory[cpu.SP.uint16 or 0x100]
+
+proc push16(cpu: var CPU, val: uint16) =
+  cpu.push uint8(val shr 8)
+  cpu.push uint8(val)
+
+proc pull16(cpu: var CPU): uint16 =
+  uint16(cpu.pull()) or (uint16(cpu.pull()) shl 8)
+
+
 
 # Collapse the individual CPU flags into a single 8bit field
 proc flags*(cpu: CPU): uint8 =
@@ -85,14 +103,14 @@ proc execute*(cpu: var CPU) =
     of 0x20:
       # JSR - absolute
       # Jump to New Location Saving Return Address
-      # TODO - actually put PC on the stack
       let val = mem.read16(cpu.PC+1)
       cpu.printOpCode(val, &"JSR ${val.toHex:04}")
-      # TODO - this is a hack to get JSR 0xFDED to work since the memory model
-      # doesn't have access to the CPU. Need to figure out a proper
-      # implementation.
-      mem[val] = cpu.A 
-      cpu.PC += 3
+      cpu.push16(cpu.PC + 3)
+      cpu.PC = val
+    of 0x60:
+      # RTS
+      cpu.printOpCode("RTS")
+      cpu.PC = cpu.pull16()
     of 0x84:
       # STY - zeropage
       let loc = mem[cpu.PC+1]
@@ -200,6 +218,7 @@ proc initialize*(cpu: var CPU, mem: Memory, PC: uint16) =
   cpu.X = 0x42
   cpu.Y = 0x43
   cpu.C = false
+  cpu.SP = 0xff
   cpu.PC = PC
   cpu.memory = mem
   echo "Initializing first 8 bytes of memory to 0xfeedface 0xdeadbeef"
