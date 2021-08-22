@@ -7,7 +7,7 @@ import memory
 export types.CPU
 export types.Memory
 
-let debugOpcodes = false
+var debugOpcodes = false
 
 proc setZ(cpu: var CPU, val: uint8) =
   cpu.Z = val == 0
@@ -64,15 +64,15 @@ proc `flags=`*(cpu: var CPU, flags: uint8) =
 
 # Generic debugging
 proc debug*(cpu: CPU) =
-  echo "===REG==="
+  echo "\n===REG==="
   echo &"A: 0x{toHex(cpu.A)} X: 0x{toHex(cpu.X)} Y: 0x{toHex(cpu.Y)}"
   echo &"PC: 0x{toHex(cpu.PC)} SP: 0x{toHex(cpu.SP)}"
 
-  echo "8 bytes of RAM at memory address 0000:"
-  echo &"0001: {cpu.memory[0].toHex} {cpu.memory[1].toHex} {cpu.memory[2].toHex} {cpu.memory[3].toHex}  {cpu.memory[4].toHex} {cpu.memory[5].toHex} {cpu.memory[6].toHex} {cpu.memory[7].toHex}"
-  echo "4 bytes of RAM at memory address FDEC (should get an error):"
-  echo &"FDEC: {cpu.memory[0xFDEC].toHex} {cpu.memory[0xFDED].toHex} {cpu.memory[0xFDEE].toHex} {cpu.memory[0xFDEF].toHex}"
-  echo "========="
+  # echo "8 bytes of RAM at memory address 0000:"
+  # echo &"0001: {cpu.memory[0].toHex} {cpu.memory[1].toHex} {cpu.memory[2].toHex} {cpu.memory[3].toHex}  {cpu.memory[4].toHex} {cpu.memory[5].toHex} {cpu.memory[6].toHex} {cpu.memory[7].toHex}"
+  # echo "4 bytes of RAM at memory address FDEC:"
+  # echo &"FDEC: {cpu.memory[0xFDEC].toHex} {cpu.memory[0xFDED].toHex} {cpu.memory[0xFDEE].toHex} {cpu.memory[0xFDEF].toHex}"
+  echo "=========\n"
 
 proc printOpCode(cpu: CPU, assembly: string) =
   if debugOpcodes:
@@ -93,7 +93,7 @@ proc execute*(cpu: var CPU) =
   var mem = cpu.memory
 
   echo "Registers initialized as:"
-  cpu.debug
+  cpu.debug()
 
   while true:
     case mem[cpu.PC]
@@ -102,73 +102,87 @@ proc execute*(cpu: var CPU) =
       break
     of 0x20:
       # JSR - absolute
-      # Jump to New Location Saving Return Address
+      # JSR pushes the address-1 of the next operation on to the stack before
+      # transferring program control to the following address.
       let val = mem.read16(cpu.PC+1)
       cpu.printOpCode(val, &"JSR ${val.toHex:04}")
-      cpu.push16(cpu.PC + 3)
+      cpu.push16(cpu.PC + 2)
       cpu.PC = val
     of 0x60:
       # RTS
+      # RTS pulls the top two bytes off the stack (low byte first) and
+      # transfers program control to that address+1. I
       cpu.printOpCode("RTS")
-      cpu.PC = cpu.pull16()
+      cpu.PC = cpu.pull16() + 1
     of 0x84:
       # STY - zeropage
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"STY ${loc:02}")
+      cpu.printOpCode(loc, &"STY ${loc.toHex:02}")
       mem[loc] = cpu.Y
       cpu.PC += 2
     of 0x85:
       # STA - zeropage
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"STA ${loc:02}")
+      cpu.printOpCode(loc, &"STA ${loc.toHex:02}")
       mem[loc] = cpu.A
       cpu.PC += 2
     of 0x86:
       # STX - zeropage
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"STX ${loc:02}")
+      cpu.printOpCode(loc, &"STX ${loc.toHex:02}")
       mem[loc] = cpu.X
       cpu.PC += 2
     of 0xa0:
       # LDY - immediate
       let val = mem[cpu.PC+1]
-      cpu.printOpCode(val, &"LDY ${val:02}")
+      cpu.printOpCode(val, &"LDY ${val.toHex:02}")
       cpu.Y = val
       cpu.PC += 2
     of 0xa2:
       # LDX - immediate
       let val = mem[cpu.PC+1]
-      cpu.printOpCode(val, &"LDX ${val:02}")
+      cpu.printOpCode(val, &"LDX ${val.toHex:02}")
       cpu.X = val
       cpu.PC += 2
     of 0xa4:
       # LDY - zeropage
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"LDY ${loc:02}")
+      cpu.printOpCode(loc, &"LDY ${loc.toHex:02}")
       cpu.Y = mem[loc]
       cpu.PC += 2
     of 0xa5:
       # LDA - zeropage
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"LDA ${loc:02}")
+      cpu.printOpCode(loc, &"LDA ${loc.toHex:02}")
       cpu.A = mem[loc]
       cpu.PC += 2
     of 0xa6:
       # LDX - zeropage
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"LDX ${loc:02}")
+      cpu.printOpCode(loc, &"LDX ${loc.toHex:02}")
       cpu.X = mem[loc]
       cpu.PC += 2
     of 0xa9:
       # LDA - immediate
       let val = mem[cpu.PC+1]
-      cpu.printOpCode(val, &"LDA ${val:02}")
+      cpu.printOpCode(val, &"LDA ${val.toHex:02}")
       cpu.A = val
+      cpu.PC += 2
+    of 0xb1:
+      # LDA - indirect, Y
+      var val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDA ({val.toHex:04}), Y")
+      cpu.A = mem[val + cpu.Y]
+      cpu.printOpCode(val, &"LDA {cpu.A.toHex}")
+
+      # Update Z and N flags if needed
+      cpu.setZ(cpu.A)
+      cpu.setN(cpu.A)
       cpu.PC += 2
     of 0xbd:
       # LDA - absolute, X
       var val = mem.read16(cpu.PC+1)
-      cpu.printOpCode(val, &"LDA ${val:04}, X")
+      cpu.printOpCode(val, &"LDA ${val.toHex:04}, X")
       cpu.A = mem[val + cpu.X]
 
       # Update Z and N flags if needed
@@ -178,7 +192,7 @@ proc execute*(cpu: var CPU) =
     of 0xd0:
       # BNE - Relative
       var loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"BNE ${loc:02}")
+      cpu.printOpCode(loc, &"BNE ${loc.toHex:02}")
       cpu.PC += 2
       if not cpu.Z:
         # TODO this is fugly
@@ -198,7 +212,7 @@ proc execute*(cpu: var CPU) =
       # BEQ - Relative
       # TODO handle negative jumps
       let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"BEQ ${loc:02}")
+      cpu.printOpCode(loc, &"BEQ ${loc.toHex:02}")
       cpu.PC += 2
       if cpu.Z:
         cpu.PC += loc
@@ -208,15 +222,15 @@ proc execute*(cpu: var CPU) =
       echo "Exiting..."
       break
 
-  cpu.debug
+  cpu.debug()
   echo "Done"
 
 # Set up the CPU, registers and memory as it should be
 # on initialization or reset
 proc initialize*(cpu: var CPU, mem: Memory, PC: uint16) =
-  cpu.A = 0x41
-  cpu.X = 0x42
-  cpu.Y = 0x43
+  cpu.A = 0x0
+  cpu.X = 0x0
+  cpu.Y = 0x0
   cpu.C = false
   cpu.SP = 0xff
   cpu.PC = PC

@@ -11,6 +11,10 @@ template print(s: varargs[string, `$`]) =
 # Read a byte of memory from adr
 proc `[]`*(memory: Memory, adr: uint16): uint8 =
   case adr
+  of 0xf3d8:      # HGR2 - UNIMPLEMENTED
+    result = 0x60 # RTS
+  of 0xf3e2:      # HGR - UNIMPLEMENTED
+    result = 0x60 # RTS
   of 0xfded:
     result = 0x85 # STA
   of 0xfdee:
