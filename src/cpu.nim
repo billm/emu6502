@@ -110,6 +110,15 @@ proc load(cpu: var CPU, mode: OperatorMode, reg: var uint8, val: uint8) =
     reg = val
   of zeroPage:
     reg = cpu.memory[val]
+  of indirectX:
+    # TODO handle wrapping of zero page
+    reg = cpu.memory[(cpu.memory[val].uint16 or 0x100) + cpu.X]
+  of indirectY:
+    # TODO read16() takes a uint16, we're passing it a uint8
+    # this can only end in disaster - CONFIRM the below code works
+    # loc should be a 16 bit value loc/loc+1 (0xebec where 0xeb was passed in)
+    let loc = (val.uint16 shl 8) or (val+1)
+    reg = cpu.memory[cpu.memory.read16(loc) + cpu.Y]
   else:
     echo "TODO"
   cpu.setZ(reg)
@@ -170,6 +179,13 @@ proc execute*(cpu: var CPU) =
       cpu.printOpCode(val, &"LDY ${val.toHex:02}")
       cpu.load(immediate, cpu.Y, val)
       cpu.PC += 2
+    of 0xa1:
+      # LDA - indirect, X
+      var val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDA ({val.toHex:02}, X)")
+      cpu.load(indirectX, cpu.A, val)
+      cpu.PC += 2
+
     of 0xa2:
       # LDX - immediate
       let val = mem[cpu.PC+1]
@@ -202,15 +218,9 @@ proc execute*(cpu: var CPU) =
       cpu.PC += 2
     of 0xb1:
       # LDA - indirect, Y
-      # TODO, no way this is correct
       var val = mem[cpu.PC+1]
       cpu.printOpCode(val, &"LDA ({val.toHex:04}), Y")
-      cpu.A = mem[val + cpu.Y]
-      cpu.printOpCode(val, &"LDA {cpu.A.toHex}")
-      
-      # Update Z and N flags if needed
-      cpu.setZ(cpu.A)
-      cpu.setN(cpu.A)
+      cpu.load(indirectY, cpu.A, val)
       cpu.PC += 2
     of 0xbd:
       # LDA - absolute, X
