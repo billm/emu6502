@@ -9,6 +9,11 @@ export types.Memory
 
 var debugOpcodes = false
 
+type 
+  OperatorMode = enum
+    immediate, zeroPage, zeroPageX, zeroPageY, absolute, absoluteX, absoluteY,
+    indirect, indirectX, indirectY
+
 proc setZ(cpu: var CPU, val: uint8) =
   cpu.Z = val == 0
 
@@ -86,6 +91,33 @@ proc printOpCode(cpu: CPU, val: uint16, assembly: string) =
   if debugOpcodes:
     echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex} {assembly}"
 
+# Load register with 16 bit value
+proc load(cpu: var CPU, mode: OperatorMode, reg: var uint8, val: uint16) =
+  case mode
+  of absoluteX:
+    reg = cpu.memory[val + cpu.X]
+  of absoluteY:
+    reg = cpu.memory[val + cpu.Y]
+  else:
+    echo "TODO"
+  cpu.setZ(reg)
+  cpu.setN(reg)
+
+# Load register with value
+proc load(cpu: var CPU, mode: OperatorMode, reg: var uint8, val: uint8) =
+  case mode
+  of immediate:
+    reg = val
+  of zeroPage:
+    reg = cpu.memory[val]
+  else:
+    echo "TODO"
+  cpu.setZ(reg)
+  cpu.setN(reg)
+
+proc store(cpu: CPU) =
+  echo "TODO"
+
 
 # Execute the opcode bytestream
 proc execute*(cpu: var CPU) =
@@ -136,45 +168,46 @@ proc execute*(cpu: var CPU) =
       # LDY - immediate
       let val = mem[cpu.PC+1]
       cpu.printOpCode(val, &"LDY ${val.toHex:02}")
-      cpu.Y = val
+      cpu.load(immediate, cpu.Y, val)
       cpu.PC += 2
     of 0xa2:
       # LDX - immediate
       let val = mem[cpu.PC+1]
       cpu.printOpCode(val, &"LDX ${val.toHex:02}")
-      cpu.X = val
+      cpu.load(immediate, cpu.X, val)
       cpu.PC += 2
     of 0xa4:
       # LDY - zeropage
-      let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"LDY ${loc.toHex:02}")
-      cpu.Y = mem[loc]
+      let val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDY ${val.toHex:02}")
+      cpu.load(zeroPage, cpu.Y, val)
       cpu.PC += 2
     of 0xa5:
       # LDA - zeropage
-      let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"LDA ${loc.toHex:02}")
-      cpu.A = mem[loc]
+      let val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDA ${val.toHex:02}")
+      cpu.load(zeroPage, cpu.A, val)
       cpu.PC += 2
     of 0xa6:
       # LDX - zeropage
-      let loc = mem[cpu.PC+1]
-      cpu.printOpCode(loc, &"LDX ${loc.toHex:02}")
-      cpu.X = mem[loc]
+      let val = mem[cpu.PC+1]
+      cpu.printOpCode(val, &"LDX ${val.toHex:02}")
+      cpu.load(zeroPage, cpu.X, val)
       cpu.PC += 2
     of 0xa9:
       # LDA - immediate
       let val = mem[cpu.PC+1]
       cpu.printOpCode(val, &"LDA ${val.toHex:02}")
-      cpu.A = val
+      cpu.load(immediate, cpu.A, val)
       cpu.PC += 2
     of 0xb1:
       # LDA - indirect, Y
+      # TODO, no way this is correct
       var val = mem[cpu.PC+1]
       cpu.printOpCode(val, &"LDA ({val.toHex:04}), Y")
       cpu.A = mem[val + cpu.Y]
       cpu.printOpCode(val, &"LDA {cpu.A.toHex}")
-
+      
       # Update Z and N flags if needed
       cpu.setZ(cpu.A)
       cpu.setN(cpu.A)
@@ -183,11 +216,7 @@ proc execute*(cpu: var CPU) =
       # LDA - absolute, X
       var val = mem.read16(cpu.PC+1)
       cpu.printOpCode(val, &"LDA ${val.toHex:04}, X")
-      cpu.A = mem[val + cpu.X]
-
-      # Update Z and N flags if needed
-      cpu.setZ(cpu.A)
-      cpu.setN(cpu.A)
+      cpu.load(absoluteX, cpu.A, val)
       cpu.PC += 3
     of 0xd0:
       # BNE - Relative
