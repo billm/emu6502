@@ -7,7 +7,8 @@ import memory
 export types.CPU
 export types.Memory
 
-var debugOpcodes = false
+var debugOpcodes* = false
+var debugCpu* = false
 
 type 
   OperatorMode = enum
@@ -68,28 +69,32 @@ proc `flags=`*(cpu: var CPU, flags: uint8) =
 
 
 # Generic debugging
-proc debug*(cpu: CPU) =
-  echo "\n===REG==="
-  echo &"A: 0x{toHex(cpu.A)} X: 0x{toHex(cpu.X)} Y: 0x{toHex(cpu.Y)}"
-  echo &"PC: 0x{toHex(cpu.PC)} SP: 0x{toHex(cpu.SP)}"
+proc debug*(cpu: CPU, override: bool = false ) =
+  if debugCpu or override:
+    var fh = stderr
+    if override:
+      fh = stdout
+    fh.writeLine("===REG===")
+    fh.writeLine(&"A: 0x{toHex(cpu.A)} X: 0x{toHex(cpu.X)} Y: 0x{toHex(cpu.Y)}")
+    fh.writeLine(&"PC: 0x{toHex(cpu.PC)} SP: 0x{toHex(cpu.SP)}")
 
-  # echo "8 bytes of RAM at memory address 0000:"
-  # echo &"0001: {cpu.memory[0].toHex} {cpu.memory[1].toHex} {cpu.memory[2].toHex} {cpu.memory[3].toHex}  {cpu.memory[4].toHex} {cpu.memory[5].toHex} {cpu.memory[6].toHex} {cpu.memory[7].toHex}"
-  # echo "4 bytes of RAM at memory address FDEC:"
-  # echo &"FDEC: {cpu.memory[0xFDEC].toHex} {cpu.memory[0xFDED].toHex} {cpu.memory[0xFDEE].toHex} {cpu.memory[0xFDEF].toHex}"
-  echo "=========\n"
+    # echo "8 bytes of RAM at memory address 0000:"
+    # echo &"0001: {cpu.memory[0].toHex} {cpu.memory[1].toHex} {cpu.memory[2].toHex} {cpu.memory[3].toHex}  {cpu.memory[4].toHex} {cpu.memory[5].toHex} {cpu.memory[6].toHex} {cpu.memory[7].toHex}"
+    # echo "4 bytes of RAM at memory address FDEC:"
+    # echo &"FDEC: {cpu.memory[0xFDEC].toHex} {cpu.memory[0xFDED].toHex} {cpu.memory[0xFDEE].toHex} {cpu.memory[0xFDEF].toHex}"
+    fh.writeLine("=========\n")
 
 proc printOpCode(cpu: CPU, assembly: string) =
   if debugOpcodes:
-    echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex}      {assembly}"
+    stderr.writeLine(&"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex}      {assembly}")
 
 proc printOpCode(cpu: CPU, val: uint8, assembly: string) =
   if debugOpcodes:
-    echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex}   {assembly}"
+    stderr.writeLine(&"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex}   {assembly}")
 
 proc printOpCode(cpu: CPU, val: uint16, assembly: string) =
   if debugOpcodes:
-    echo &"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex} {assembly}"
+    stderr.writeLine(&"{cpu.PC.toHex}: {cpu.memory[cpu.PC].toHex} {val.toHex} {assembly}")
 
 # Load register with 16 bit value
 proc load(cpu: var CPU, mode: OperatorMode, reg: var uint8, val: uint16) =
@@ -130,7 +135,7 @@ proc execute*(cpu: var CPU) =
   var mem = cpu.memory
 
   echo "Registers initialized as:"
-  cpu.debug()
+  cpu.debug(true)
 
   while true:
     case mem[cpu.PC]
@@ -256,8 +261,10 @@ proc execute*(cpu: var CPU) =
       echo &"\r\nUnknown opcode: {mem[cpu.PC].toHex} @ PC: 0x{cpu.PC.toHex}"
       echo "Exiting..."
       break
+    cpu.debug()
 
-  cpu.debug()
+  echo "\nAt program exit, the CPU state is:"
+  cpu.debug(true)
   echo "Done"
 
 # Set up the CPU, registers and memory as it should be
