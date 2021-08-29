@@ -11,7 +11,16 @@ nimble build
 ## Usage
 
 ```bash
-# Argument 1 should be the 6502 raw opcode file you want to execute
+Usage:
+  emu6502 [options] <program_file>
+Options:
+  --debug-cpu          Enable CPU register debugging
+  --debug-opcodes      Enable opcode debugging
+  -h --help            show this help message and exit
+```
+
+Example:  
+```bash
 ./emu6502 tests/poc
 ```
 
@@ -21,6 +30,7 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ## Thanks
 Many thanks to Dennis Felsing for NimES (<https://github.com/def-/nimes>) from which I took much inspiration and code.
+A huge shout out goes to Art Green who provided me with many 6502 resources and his own wealth of knowledge on the processor.
 
 ## License
 
