@@ -114,11 +114,7 @@ proc load(cpu: var CPU, mode: OperatorMode, reg: var uint8, val: uint8) =
     # TODO handle wrapping of zero page
     reg = cpu.memory[(cpu.memory[val].uint16 or 0x100) + cpu.X]
   of indirectY:
-    # TODO read16() takes a uint16, we're passing it a uint8
-    # this can only end in disaster - CONFIRM the below code works
-    # loc should be a 16 bit value loc/loc+1 (0xebec where 0xeb was passed in)
-    let loc = (val.uint16 shl 8) or (val+1)
-    reg = cpu.memory[cpu.memory.read16(loc) + cpu.Y]
+    reg = cpu.memory[cpu.memory.read16(val.uint16) + cpu.Y]
   else:
     echo "TODO"
   cpu.setZ(reg)
