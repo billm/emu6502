@@ -10,6 +10,7 @@ type
     A*, X*, Y*: uint8
     PC*: uint16  # Program counter
     SP*: uint8   # Stack pointer
+    cycles*: uint16  # Total cycles executed
     # CPU flags
     C*: bool # 0 bit - Carry Flag
     Z*: bool # 1 bit - Zero Flag
@@ -20,3 +21,7 @@ type
     V*: bool # 6 bit - Overflow flag
     N*: bool # 7 bit - Negative flag
     memory*: Memory
+
+  OperatorMode* = enum
+    immediate, zeroPage, zeroPageX, zeroPageY, absolute, absoluteX, absoluteY,
+    indirect, indirectX, indirectY, relative

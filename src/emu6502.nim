@@ -4,6 +4,8 @@ import docopt
 
 import cpu as processor
 import memory
+import opcodes
+import utils
 
 let doc = """
 Usage:
@@ -17,8 +19,8 @@ Options:
 
 let args = docopt(doc)
 
-processor.debugCpu = args["--debug-cpu"]
-processor.debugOpcodes = args["--debug-opcodes"]
+utils.debugCpu = args["--debug-cpu"]
+utils.debugOpcodes = args["--debug-opcodes"]
 
 let programFile = $args["<program_file>"]
 
@@ -43,6 +45,8 @@ for b in code.items:
   t.add(&"{b.toHex} ")
 echo t
 
+# Initialize opcode table
+setupOpcodeTable()
   
 # Initialize memory
 mem.initialize(code, 0x300)
