@@ -231,15 +231,17 @@ proc execute*(cpu: var CPU) =
       cpu.PC += 3
     of 0xd0:
       # BNE - Relative
-      var loc = mem[cpu.PC+1]
+      let loc = mem[cpu.PC+1]
       cpu.printOpCode(loc, &"BNE ${loc.toHex:02}")
       cpu.PC += 2
       if not cpu.Z:
-        # TODO this is fugly
-        if loc > cast[uint8](127):
-          loc = cast[uint8](256)-loc
-          cpu.PC -= loc
+        # Handle both positive and negative jumps
+        if loc > 127:
+          # Negative jump - convert to signed value
+          let signed_offset = cast[int8](loc)
+          cpu.PC = cpu.PC + cast[uint16](signed_offset)
         else:
+          # Positive jump
           cpu.PC += loc
     of 0xe8:
       # INX
@@ -250,12 +252,18 @@ proc execute*(cpu: var CPU) =
       cpu.PC += 1
     of 0xf0:
       # BEQ - Relative
-      # TODO handle negative jumps
       let loc = mem[cpu.PC+1]
       cpu.printOpCode(loc, &"BEQ ${loc.toHex:02}")
       cpu.PC += 2
       if cpu.Z:
-        cpu.PC += loc
+        # Handle both positive and negative jumps
+        if loc > 127:
+          # Negative jump - convert to signed value
+          let signed_offset = cast[int8](loc)
+          cpu.PC = cpu.PC + cast[uint16](signed_offset)
+        else:
+          # Positive jump
+          cpu.PC += loc
 
     else:
       echo &"\r\nUnknown opcode: {mem[cpu.PC].toHex} @ PC: 0x{cpu.PC.toHex}"
