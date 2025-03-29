@@ -248,6 +248,23 @@ proc opANC_imm*(cpu: var CPU) =
 
 
 
+
+proc opORA_abs*(cpu: var CPU) =
+  ## ORA Absolute - Opcode 0x0D
+  ## Action: A = A | M
+  let result = resolveAddressingMode(cpu, absolute)
+  let value = cpu.memory[result.address]
+  cpu.printOpCode(result.address, &"ORA ${result.address.toHex:04} = {value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
+  cpu.cycles += 4 # ORA Absolute takes 4 cycles
+
+
+
 proc opNOP_abs*(cpu: var CPU) =
   ## NOP Absolute - Opcode 0x0C (unofficial)
   ## Action: Fetches operand address, reads from address, discards value.
@@ -433,6 +450,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x0B] = OpcodeInfo(handler: opANC_imm, mode: immediate, cycles: 2, mnemonic: "ANC") # Unofficial
 
   opcodeTable[0x0C] = OpcodeInfo(handler: opNOP_abs, mode: absolute, cycles: 4, mnemonic: "NOP") # Unofficial
+  opcodeTable[0x0D] = OpcodeInfo(handler: opORA_abs, mode: absolute, cycles: 4, mnemonic: "ORA")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
   opcodeTable[0x85] = OpcodeInfo(handler: opSTA, mode: zeroPage, cycles: 3, mnemonic: "STA")
