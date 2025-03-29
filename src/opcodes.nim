@@ -500,6 +500,31 @@ proc opSLO_indirectY*(cpu: var CPU) =
   # The extraCycles from resolveAddressingMode are ignored for this specific opcode.
   cpu.cycles += 8
 
+
+proc opASL_zpX*(cpu: var CPU) =
+  ## ASL ZeroPage,X - Opcode 0x16
+  ## Action: M = M << 1
+  let result = resolveAddressingMode(cpu, zeroPageX)
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  cpu.printOpCode(effectiveAddr, &"ASL ${(cpu.memory[cpu.PC + 1]).toHex:02},X @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+
+  # 1. Perform ASL
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[effectiveAddr] = shiftedValue
+
+  # 3. Update flags based on the *shifted* value
+  cpu.setZ(shiftedValue)
+  cpu.setN(shiftedValue)
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 6 # ASL ZeroPage,X takes 6 cycles
+
+
 proc opNOP_zpX*(cpu: var CPU) =
   ## NOP ZeroPage,X - Opcode 0x14 (unofficial)
   ## Action: Fetches operand, calculates address (operand + X), reads from address, discards value.
@@ -612,6 +637,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x13] = OpcodeInfo(handler: opSLO_indirectY, mode: indirectY, cycles: 8, mnemonic: "SLO") # Unofficial
   opcodeTable[0x14] = OpcodeInfo(handler: opNOP_zpX, mode: zeroPageX, cycles: 4, mnemonic: "NOP") # Unofficial
   opcodeTable[0x15] = OpcodeInfo(handler: opORA_zpX, mode: zeroPageX, cycles: 4, mnemonic: "ORA")
+  opcodeTable[0x16] = OpcodeInfo(handler: opASL_zpX, mode: zeroPageX, cycles: 6, mnemonic: "ASL")
 
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")

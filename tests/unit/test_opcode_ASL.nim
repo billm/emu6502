@@ -401,3 +401,161 @@ suite "ASL Opcode Unit Tests":
       not cpu.C                 # Carry flag clear (original bit 7 was 0)
       cpu.PC == 0x0903          # PC advanced by 3
       cpu.cycles == 6           # ASL Absolute takes 6 cycles
+
+
+  # --- Tests for Opcode 0x16: ASL ZeroPage,X ---
+  
+  test "ASL ZeroPage,X - Basic Shift, No Wrap, No Carry":
+    # Setup: ASL $40,X (16 40) with X = $02
+    # Effective Address = $40 + $02 = $42
+    # Value at $0042 = $41 (01000001)
+    # Expected: Memory[$0042] = $82 (10000010), C=0, Z=0, N=1
+    cpu.PC = 0x0D00
+    cpu.X = 0x02
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0x40'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF # $42
+  
+    mem.mem[cpu.PC] = 0x16     # ASL ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x41 # Value to shift
+  
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[effectiveAddr.uint16] == 0x82 # Memory updated
+      not cpu.Z                      # Zero flag clear
+      cpu.N == true                  # Negative flag set
+      not cpu.C                      # Carry flag clear
+      cpu.PC == 0x0D02               # PC advanced by 2
+      cpu.cycles == 6                # ASL ZeroPage,X takes 6 cycles
+  
+  test "ASL ZeroPage,X - Sets Carry Flag, No Wrap":
+    # Setup: ASL $50,X (16 50) with X = $05
+    # Effective Address = $50 + $05 = $55
+    # Value at $0055 = $81 (10000001)
+    # Expected: Memory[$0055] = $02 (00000010), C=1, Z=0, N=0
+    cpu.PC = 0x0E00
+    cpu.X = 0x05
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0x50'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF # $55
+  
+    mem.mem[cpu.PC] = 0x16     # ASL ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x81 # Value to shift
+  
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[effectiveAddr.uint16] == 0x02 # Memory updated
+      not cpu.Z                      # Zero flag clear
+      not cpu.N                      # Negative flag clear
+      cpu.C == true                  # Carry flag set
+      cpu.PC == 0x0E02               # PC advanced by 2
+      cpu.cycles == 6                # Cycles correct
+  
+  test "ASL ZeroPage,X - Sets Zero Flag (and Carry), No Wrap":
+    # Setup: ASL $60,X (16 60) with X = $06
+    # Effective Address = $60 + $06 = $66
+    # Value at $0066 = $80 (10000000)
+    # Expected: Memory[$0066] = $00 (00000000), C=1, Z=1, N=0
+    cpu.PC = 0x0F00
+    cpu.X = 0x06
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0x60'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF # $66
+  
+    mem.mem[cpu.PC] = 0x16     # ASL ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x80 # Value to shift
+  
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[effectiveAddr.uint16] == 0x00 # Memory updated
+      cpu.Z == true                  # Zero flag set
+      not cpu.N                      # Negative flag clear
+      cpu.C == true                  # Carry flag set
+      cpu.PC == 0x0F02               # PC advanced by 2
+      cpu.cycles == 6                # Cycles correct
+  
+  test "ASL ZeroPage,X - Sets Negative Flag, No Wrap":
+    # Setup: ASL $70,X (16 70) with X = $07
+    # Effective Address = $70 + $07 = $77
+    # Value at $0077 = $40 (01000000)
+    # Expected: Memory[$0077] = $80 (10000000), C=0, Z=0, N=1
+    cpu.PC = 0x1000
+    cpu.X = 0x07
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0x70'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF # $77
+  
+    mem.mem[cpu.PC] = 0x16     # ASL ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x40 # Value to shift
+  
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[effectiveAddr.uint16] == 0x80 # Memory updated
+      not cpu.Z                      # Zero flag clear
+      cpu.N == true                  # Negative flag set
+      not cpu.C                      # Carry flag clear
+      cpu.PC == 0x1002               # PC advanced by 2
+      cpu.cycles == 6                # Cycles correct
+  
+  test "ASL ZeroPage,X - Zero Page Wrap":
+    # Setup: ASL $F0,X (16 F0) with X = $15
+    # Effective Address = ($F0 + $15) mod 256 = $105 mod 256 = $05
+    # Value at $0005 = $C1 (11000001)
+    # Expected: Memory[$0005] = $82 (10000010), C=1, Z=0, N=1
+    cpu.PC = 0x1100
+    cpu.X = 0x15
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0xF0'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF # $05
+  
+    mem.mem[cpu.PC] = 0x16     # ASL ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0xC1 # Value to shift
+  
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[effectiveAddr.uint16] == 0x82 # Memory updated
+      not cpu.Z                      # Zero flag clear
+      cpu.N == true                  # Negative flag set
+      cpu.C == true                  # Carry flag set
+      cpu.PC == 0x1102               # PC advanced by 2
+      cpu.cycles == 6                # Cycles correct
