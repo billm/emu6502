@@ -1486,9 +1486,9 @@ suite "Opcode Unit Tests":
     cpu.PC = 0x0600
     cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C and Z initially
     cpu.cycles = 0
-    let targetAddr: Address = 0x1234
-    let initialValue: Byte = 0x41
-    let expectedValue: Byte = 0x82
+    let targetAddr: uint16 = 0x1234
+    let initialValue: uint8 = 0x41
+    let expectedValue: uint8 = 0x82
 
     mem.mem[cpu.PC] = 0x0E      # ASL Absolute opcode
     mem.mem[cpu.PC + 1] = lowByte(targetAddr) # Low byte of address
@@ -1518,9 +1518,9 @@ suite "Opcode Unit Tests":
     cpu.PC = 0x0700
     cpu.setFlags(0x20'u8 or 0x80'u8 or 0x02'u8) # Set N and Z initially
     cpu.cycles = 0
-    let targetAddr: Address = 0xABCD
-    let initialValue: Byte = 0x81
-    let expectedValue: Byte = 0x02
+    let targetAddr: uint16 = 0xABCD
+    let initialValue: uint8 = 0x81
+    let expectedValue: uint8 = 0x02
 
     mem.mem[cpu.PC] = 0x0E      # ASL Absolute opcode
     mem.mem[cpu.PC + 1] = lowByte(targetAddr) # Low byte of address

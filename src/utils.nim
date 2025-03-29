@@ -3,6 +3,15 @@ import strformat
 import strutils
 import memory
 
+proc lowByte*(addressValue: uint16): uint8 {.inline.} =
+  ## Returns the low byte of a 16-bit addressValueess.
+  return uint8(addressValue and 0x00FF)
+
+proc highByte*(addressValue: uint16): uint8 {.inline.} =
+  ## Returns the high byte of a 16-bit addressValueess.
+  return uint8(addressValue shr 8)
+
+
 var debugOpcodes* = false
 var debugCpu* = false
 
