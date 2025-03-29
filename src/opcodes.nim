@@ -515,6 +515,22 @@ proc opNOP_zpX*(cpu: var CPU) =
 
 
 
+proc opORA_zpX*(cpu: var CPU) =
+  ## ORA ZeroPage,X - Opcode 0x15
+  ## Action: A = A | M
+  let result = resolveAddressingMode(cpu, zeroPageX)
+  let value = cpu.memory[result.address]
+  cpu.printOpCode(result.address, &"ORA ${(cpu.memory[cpu.PC + 1]).toHex:02},X @ {result.address.toHex:02} = {value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 4 # ORA ZeroPage,X takes 4 cycles
+
+
+
 proc opNOP_zp*(cpu: var CPU) =
   ## NOP ZeroPage - Opcode 0x04 (unofficial)
   ## Action: Fetches operand, reads from ZeroPage address, discards value.
@@ -595,6 +611,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x12] = OpcodeInfo(handler: opKIL_12, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
   opcodeTable[0x13] = OpcodeInfo(handler: opSLO_indirectY, mode: indirectY, cycles: 8, mnemonic: "SLO") # Unofficial
   opcodeTable[0x14] = OpcodeInfo(handler: opNOP_zpX, mode: zeroPageX, cycles: 4, mnemonic: "NOP") # Unofficial
+  opcodeTable[0x15] = OpcodeInfo(handler: opORA_zpX, mode: zeroPageX, cycles: 4, mnemonic: "ORA")
 
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")

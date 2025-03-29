@@ -592,3 +592,166 @@ suite "ORA Opcode Unit Tests":
       cpu.N == true        # Negative flag set
       cpu.PC == 0x0D02     # PC advanced by 2
       cpu.cycles == 5      # No page cross
+
+  # --- Tests for Opcode 0x15: ORA ZeroPage,X ---
+
+  test "ORA ZeroPage,X - Basic Operation":
+    # Setup: ORA $30,X where X=$05
+    # Effective address = $30 + $05 = $35
+    # Value at $0035 is $55
+    # Initial A = $AA
+    # Expected A = $AA | $55 = $FF
+    cpu.PC = 0x0E00
+    cpu.X = 0x05
+    cpu.A = 0xAA
+    cpu.setFlags(0x20'u8) # Clear N, Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x0E00] = 0x15  # ORA ZeroPage,X
+    mem.mem[0x0E01] = 0x30  # Zero page base address operand
+
+    # Setup the value in zero page at the effective address
+    mem.mem[0x0035] = 0x55
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (AA | 55 = FF)
+      not cpu.Z            # Zero flag clear (FF != 0)
+      cpu.N == true        # Negative flag set (bit 7 of FF is 1)
+      cpu.PC == 0x0E02     # PC advanced by 2
+      cpu.cycles == 4      # ORA ZeroPage,X takes 4 cycles
+
+  test "ORA ZeroPage,X - Zero Page Wrap-around":
+    # Setup: ORA $F0,X where X=$15
+    # Effective address = $F0 + $15 = $105 -> wraps to $05
+    # Value at $0005 is $0F
+    # Initial A = $F0
+    # Expected A = $F0 | $0F = $FF
+    cpu.PC = 0x0F00
+    cpu.X = 0x15
+    cpu.A = 0xF0
+    cpu.setFlags(0x20'u8) # Clear N, Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x0F00] = 0x15  # ORA ZeroPage,X
+    mem.mem[0x0F01] = 0xF0  # Zero page base address operand
+
+    # Setup the value in zero page at the wrapped effective address
+    mem.mem[0x0005] = 0x0F
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (F0 | 0F = FF)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x0F02     # PC advanced by 2
+      cpu.cycles == 4      # Cycles correct
+
+  test "ORA ZeroPage,X - Sets Zero Flag":
+    # Setup: ORA $40,X where X=$02
+    # Effective address = $40 + $02 = $42
+    # Value at $0042 is $00
+    # Initial A = $00
+    # Expected A = $00 | $00 = $00
+    cpu.PC = 0x1000
+    cpu.X = 0x02
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x1000] = 0x15  # ORA ZeroPage,X
+    mem.mem[0x1001] = 0x40  # Zero page base address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0042] = 0x00
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard
+
+    check:
+      cpu.A == 0x00        # Accumulator is zero
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == 0x1002     # PC advanced by 2
+      cpu.cycles == 4      # Cycles correct
+
+  test "ORA ZeroPage,X - Sets Negative Flag":
+    # Setup: ORA $50,X where X=$03
+    # Effective address = $50 + $03 = $53
+    # Value at $0053 is $80
+    # Initial A = $01
+    # Expected A = $01 | $80 = $81
+    cpu.PC = 0x1100
+    cpu.X = 0x03
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x1100] = 0x15  # ORA ZeroPage,X
+    mem.mem[0x1101] = 0x50  # Zero page base address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0053] = 0x80
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard
+
+    check:
+      cpu.A == 0x81        # Accumulator updated (01 | 80 = 81)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x1102     # PC advanced by 2
+      cpu.cycles == 4      # Cycles correct
+
+  test "ORA ZeroPage,X - Clears Negative Flag":
+    # Setup: ORA $60,X where X=$04
+    # Effective address = $60 + $04 = $64
+    # Value at $0064 is $0F
+    # Initial A = $70 (N flag clear)
+    # Expected A = $70 | $0F = $7F (N flag still clear)
+    cpu.PC = 0x1200
+    cpu.X = 0x04
+    cpu.A = 0x70
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x1200] = 0x15  # ORA ZeroPage,X
+    mem.mem[0x1201] = 0x60  # Zero page base address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0064] = 0x0F
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard
+
+    check:
+      cpu.A == 0x7F        # Accumulator updated (70 | 0F = 7F)
+      not cpu.Z            # Zero flag clear
+      not cpu.N            # Negative flag clear (bit 7 is 0)
+      cpu.PC == 0x1202     # PC advanced by 2
+      cpu.cycles == 4      # Cycles correct
+
