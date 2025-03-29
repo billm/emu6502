@@ -192,8 +192,18 @@ proc opBEQ(cpu: var CPU) =
     cpu.PC += uint16(result.operandBytes + 1)
     cpu.cycles += 2  # BEQ not taken takes 2 cycles
 
+proc opKIL(cpu: var CPU) =
+  ## KIL Implied - Opcode 0x02 (unofficial)
+  ## Halts the processor.
+  cpu.printOpCode("KIL")
+  cpu.halted = true
+  cpu.PC += 1 # KIL is a 1-byte instruction
+  cpu.cycles += 2 # Nominal cycle count for KIL
+
+
 proc setupOpcodeTable*() =
   # Initialize all opcodes to nil
+  opcodeTable[0x02] = OpcodeInfo(handler: opKIL, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
   for i in 0..255:
     opcodeTable[i].handler = nil
     opcodeTable[i].cycles = 0

@@ -15,6 +15,7 @@ type
     PC*: uint16  # Program counter
     SP*: uint8   # Stack pointer
     cycles*: uint16  # Total cycles executed
+    halted*: bool # Indicates if the CPU has been halted by an instruction
     # CPU flags
     C*: bool # 0 bit - Carry Flag
     Z*: bool # 1 bit - Zero Flag
