@@ -24,7 +24,7 @@ proc flags*(cpu: CPU): uint8 =
     (cpu.N.uint8 shl 7)
 
 # Set each processor flag boolean based on the bits set in cpu.flags
-proc `flags=`*(cpu: var CPU, flags: uint8) =
+proc setFlags*(cpu: var CPU, flags: uint8) =
   cpu.C = flags.bit(0)
   cpu.Z = flags.bit(1)
   cpu.I = flags.bit(2)

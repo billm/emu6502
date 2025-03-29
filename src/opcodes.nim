@@ -22,10 +22,16 @@ var opcodeTable*: array[256, OpcodeInfo]
 
 proc opBRK(cpu: var CPU) =
   cpu.printOpCode("BRK")
-  cpu.PC += 1  # Skip the BRK instruction
-  cpu.push16(cpu.PC)  # Push next instruction address
-  cpu.B = true  # Set break flag
-  cpu.push(cpu.flags())  # Push processor status with B flag set
+  
+  # Save return address before other operations
+  let returnAddr = cpu.PC + 2'u16  # BRK pushes PC+2
+  
+  # Set B flag and get status before pushing
+  cpu.B = true  # Set break flag before pushing status
+  let statusToPush = cpu.flags()  # Get status while B is set
+  cpu.push16(returnAddr)  # Push return address (PC+2: high byte, then low byte)
+  cpu.push(statusToPush)  # Push processor status (with B flag set)
+  cpu.B = false  # Clear B flag in actual CPU status
   cpu.I = true  # Set interrupt disable flag
   cpu.PC = (cpu.memory[0xFFFE].uint16 or (cpu.memory[0xFFFF].uint16 shl 8))  # Load IRQ vector
   cpu.cycles += 7  # BRK takes 7 cycles
