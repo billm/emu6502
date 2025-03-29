@@ -652,3 +652,118 @@ suite "Opcode Unit Tests":
       cpu.PC == 0x0932     # PC advanced by 2
       cpu.cycles == 3      # Cycles correct
 
+# --- Tests for Opcode 0x06: ASL ZeroPage ---
+
+  test "ASL ZeroPage - Basic Shift, No Carry":
+    # Setup: ASL $42 (06 42)
+    # Value at $0042 is $41 (01000001)
+    # Expected: Memory[$0042] = $82 (10000010), C=0, Z=0, N=1
+    cpu.PC = 0x0900
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
+    cpu.cycles = 0
+    let zpAddr = 0x42'u8
+  
+    mem.mem[cpu.PC] = 0x06     # ASL ZeroPage
+    mem.mem[cpu.PC + 1] = zpAddr
+    mem.mem[zpAddr.uint16] = 0x41 # Value to shift
+  
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[zpAddr.uint16] == 0x82 # Memory updated with shifted value
+      not cpu.Z                      # Zero flag clear (82 != 0)
+      cpu.N == true                  # Negative flag set (bit 7 of 82 is 1)
+      not cpu.C                      # Carry flag clear (original bit 7 of 41 was 0)
+      cpu.PC == 0x0902               # PC advanced by 2
+      cpu.cycles == 5                # ASL ZeroPage takes 5 cycles
+  
+  test "ASL ZeroPage - Sets Carry Flag":
+    # Setup: ASL $55 (06 55)
+    # Value at $0055 is $81 (10000001)
+    # Expected: Memory[$0055] = $02 (00000010), C=1, Z=0, N=0
+    cpu.PC = 0x0A00
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+    let zpAddr = 0x55'u8
+  
+    mem.mem[cpu.PC] = 0x06     # ASL ZeroPage
+    mem.mem[cpu.PC + 1] = zpAddr
+    mem.mem[zpAddr.uint16] = 0x81 # Value to shift
+  
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[zpAddr.uint16] == 0x02 # Memory updated with shifted value
+      not cpu.Z                      # Zero flag clear (02 != 0)
+      not cpu.N                      # Negative flag clear (bit 7 of 02 is 0)
+      cpu.C == true                  # Carry flag set (original bit 7 of 81 was 1)
+      cpu.PC == 0x0A02               # PC advanced by 2
+      cpu.cycles == 5                # Cycles correct
+  
+  test "ASL ZeroPage - Sets Zero Flag":
+    # Setup: ASL $66 (06 66)
+    # Value at $0066 is $80 (10000000)
+    # Expected: Memory[$0066] = $00 (00000000), C=1, Z=1, N=0
+    cpu.PC = 0x0B00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+    let zpAddr = 0x66'u8
+  
+    mem.mem[cpu.PC] = 0x06     # ASL ZeroPage
+    mem.mem[cpu.PC + 1] = zpAddr
+    mem.mem[zpAddr.uint16] = 0x80 # Value to shift
+  
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[zpAddr.uint16] == 0x00 # Memory updated with shifted value
+      cpu.Z == true                  # Zero flag set (result is 00)
+      not cpu.N                      # Negative flag clear (bit 7 of 00 is 0)
+      cpu.C == true                  # Carry flag set (original bit 7 of 80 was 1)
+      cpu.PC == 0x0B02               # PC advanced by 2
+      cpu.cycles == 5                # Cycles correct
+  
+  test "ASL ZeroPage - Sets Negative Flag":
+    # Setup: ASL $77 (06 77)
+    # Value at $0077 is $40 (01000000)
+    # Expected: Memory[$0077] = $80 (10000000), C=0, Z=0, N=1
+    cpu.PC = 0x0C00
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
+    cpu.cycles = 0
+    let zpAddr = 0x77'u8
+  
+    mem.mem[cpu.PC] = 0x06     # ASL ZeroPage
+    mem.mem[cpu.PC + 1] = zpAddr
+    mem.mem[zpAddr.uint16] = 0x40 # Value to shift
+  
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+  
+    check:
+      mem.mem[zpAddr.uint16] == 0x80 # Memory updated with shifted value
+      not cpu.Z                      # Zero flag clear (80 != 0)
+      cpu.N == true                  # Negative flag set (bit 7 of 80 is 1)
+      not cpu.C                      # Carry flag clear (original bit 7 of 40 was 0)
+      cpu.PC == 0x0C02               # PC advanced by 2
+      cpu.cycles == 5                # Cycles correct
+  
+  

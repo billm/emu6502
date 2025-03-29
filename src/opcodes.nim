@@ -142,6 +142,31 @@ proc opORA_zp*(cpu: var CPU) =
   cpu.cycles += 3 # ORA ZeroPage takes 3 cycles
 
 
+proc opASL_zp*(cpu: var CPU) =
+  ## ASL ZeroPage - Opcode 0x06
+  ## Action: M = M << 1
+  let result = resolveAddressingMode(cpu, zeroPage)
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  cpu.printOpCode(effectiveAddr, &"ASL ${effectiveAddr.toHex:02} = {originalValue.toHex:02}")
+
+  # 1. Perform ASL
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[effectiveAddr] = shiftedValue
+
+  # 3. Update flags based on the *shifted* value
+  cpu.setZ(shiftedValue)
+  cpu.setN(shiftedValue)
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 5 # ASL ZeroPage takes 5 cycles
+
+
+
 proc opLDX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, immediate)
   cpu.printOpCode(result.value, &"LDX ${result.value.toHex:02}")
@@ -290,3 +315,4 @@ proc setupOpcodeTable*() =
   opcodeTable[0xd0] = OpcodeInfo(handler: opBNE, mode: relative, cycles: 2, mnemonic: "BNE")
   opcodeTable[0xe8] = OpcodeInfo(handler: opINX, mode: immediate, cycles: 2, mnemonic: "INX")
   opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ") 
+  opcodeTable[0x06] = OpcodeInfo(handler: opASL_zp, mode: zeroPage, cycles: 5, mnemonic: "ASL")
