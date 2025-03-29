@@ -268,7 +268,7 @@ suite "Opcode Unit Tests":
         info.handler(cpu)
       else:
         # Simulate failure if not implemented - real run would raise
-        fail("Opcode 0x02 handler is nil") 
+        fail()
     except UnimplementedOpcodeError:
       # This is the expected path if the handler is truly nil
       # We still need checks below to ensure *correct* implementation later
@@ -304,7 +304,7 @@ suite "Opcode Unit Tests":
     cpu.PC = 0x0400
     cpu.X = 0x05
     cpu.A = 0x12
-    cpu.setFlags(0x20'u8 or FLAG_C) # Set C initially to ensure it gets cleared
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
     cpu.cycles = 0
 
     mem.mem[0x0400] = 0x03  # SLO (Indirect,X)
@@ -322,7 +322,7 @@ suite "Opcode Unit Tests":
     if info.handler != nil:
       info.handler(cpu)
     else:
-      fail("Opcode 0x03 handler is nil") # Fail explicitly if not implemented
+      fail() # Fail explicitly if not implemented
 
     check:
       cpu.A == 0x92             # Accumulator updated (12 | 82 = 92)
@@ -372,7 +372,7 @@ suite "Opcode Unit Tests":
     if info.handler != nil:
       info.handler(cpu)
     else:
-      fail("Opcode 0x03 handler is nil")
+      fail()
 
     check:
       cpu.A == 0x0F             # Accumulator updated (0F | 02 = 0F)
@@ -404,7 +404,7 @@ suite "Opcode Unit Tests":
     cpu.PC = 0x0600
     cpu.X = 0x01
     cpu.A = 0x00
-    cpu.setFlags(0x20'u8 or FLAG_N or FLAG_C) # Set N, C initially
+    cpu.setFlags(0x20'u8 or 0x80'u8 or 0x01'u8) # Set N, C initially
     cpu.cycles = 0
 
     mem.mem[0x0600] = 0x03  # SLO (Indirect,X)
@@ -422,7 +422,7 @@ suite "Opcode Unit Tests":
     if info.handler != nil:
       info.handler(cpu)
     else:
-      fail("Opcode 0x03 handler is nil")
+      fail()
 
     check:
       cpu.A == 0x00             # Accumulator is zero
@@ -472,7 +472,7 @@ suite "Opcode Unit Tests":
     if info.handler != nil:
       info.handler(cpu)
     else:
-      fail("Opcode 0x03 handler is nil")
+      fail()
 
     check:
       cpu.A == 0x83             # Accumulator updated (03 | 80 = 83)
@@ -507,7 +507,7 @@ suite "Opcode Unit Tests":
     let initialX = cpu.X
     let initialY = cpu.Y
     let initialSP = cpu.SP
-    let initialFlags = cpu.getFlags()
+    let initialFlags = cpu.flags()
     let initialPC = cpu.PC
     let initialCycles = cpu.cycles
 
@@ -516,7 +516,7 @@ suite "Opcode Unit Tests":
     if info.handler != nil:
       info.handler(cpu)
     else:
-      fail("Opcode 0x04 handler is nil") # Fail explicitly if not implemented
+      fail() # Fail explicitly if not implemented
 
     check:
       # State unchanged
@@ -524,8 +524,131 @@ suite "Opcode Unit Tests":
       cpu.X == initialX
       cpu.Y == initialY
       cpu.SP == initialSP
-      cpu.getFlags() == initialFlags
+      cpu.flags() == initialFlags
 
       # PC and Cycles updated
       cpu.PC == initialPC + 2
       cpu.cycles == initialCycles + 3
+
+  # --- Tests for Opcode 0x05: ORA ZeroPage ---
+
+  test "ORA ZeroPage - Basic Operation":
+    # Setup: ORA $30
+    # Value at $0030 is $55
+    # Initial A = $AA
+    # Expected A = $AA | $55 = $FF
+    cpu.PC = 0x0900
+    cpu.A = 0xAA
+    cpu.setFlags(0x20'u8) # Clear N, Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x0900] = 0x05  # ORA ZeroPage
+    mem.mem[0x0901] = 0x30  # Zero page address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0030] = 0x55
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (AA | 55 = FF)
+      not cpu.Z            # Zero flag clear (FF != 0)
+      cpu.N == true        # Negative flag set (bit 7 of FF is 1)
+      cpu.PC == 0x0902     # PC advanced by 2
+      cpu.cycles == 3      # ORA ZeroPage takes 3 cycles
+
+  test "ORA ZeroPage - Sets Zero Flag":
+    # Setup: ORA $31
+    # Value at $0031 is $00
+    # Initial A = $00
+    # Expected A = $00 | $00 = $00
+    cpu.PC = 0x0910
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0910] = 0x05  # ORA ZeroPage
+    mem.mem[0x0911] = 0x31  # Zero page address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0031] = 0x00
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x00        # Accumulator is zero
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == 0x0912     # PC advanced by 2
+      cpu.cycles == 3      # Cycles correct
+
+  test "ORA ZeroPage - Sets Negative Flag":
+    # Setup: ORA $32
+    # Value at $0032 is $80
+    # Initial A = $01
+    # Expected A = $01 | $80 = $81
+    cpu.PC = 0x0920
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0920] = 0x05  # ORA ZeroPage
+    mem.mem[0x0921] = 0x32  # Zero page address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0032] = 0x80
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x81        # Accumulator updated (01 | 80 = 81)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x0922     # PC advanced by 2
+      cpu.cycles == 3      # Cycles correct
+
+  test "ORA ZeroPage - Clears Negative Flag":
+    # Setup: ORA $33
+    # Value at $0033 is $0F
+    # Initial A = $70 (N flag clear)
+    # Expected A = $70 | $0F = $7F (N flag still clear)
+    cpu.PC = 0x0930
+    cpu.A = 0x70
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0930] = 0x05  # ORA ZeroPage
+    mem.mem[0x0931] = 0x33  # Zero page address operand
+
+    # Setup the value in zero page
+    mem.mem[0x0033] = 0x0F
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x7F        # Accumulator updated (70 | 0F = 7F)
+      not cpu.Z            # Zero flag clear
+      not cpu.N            # Negative flag clear (bit 7 is 0)
+      cpu.PC == 0x0932     # PC advanced by 2
+      cpu.cycles == 3      # Cycles correct
+

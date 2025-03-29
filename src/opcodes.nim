@@ -106,16 +106,16 @@ proc opSLO_indirectX*(cpu: var CPU) =
   ## SLO (Indirect,X) - Opcode 0x03 (unofficial)
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, indirectX)
-  let addr = result.address
-  let originalValue = cpu.memory[addr]
-  cpu.printOpCode(addr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {addr.toHex:04} = {originalValue.toHex:02}")
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
 
   # 1. ASL on M
   cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
   let shiftedValue = originalValue shl 1
 
   # 2. Write shifted value back to memory
-  cpu.memory[addr] = shiftedValue
+  cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator
   cpu.A = cpu.A or shiftedValue
@@ -125,6 +125,22 @@ proc opSLO_indirectX*(cpu: var CPU) =
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 8 + uint16(result.extraCycles) # SLO (Indirect,X) takes 8 cycles
+
+
+proc opORA_zp*(cpu: var CPU) =
+  ## ORA ZeroPage - Opcode 0x05
+  ## Action: A = A | M
+  let result = resolveAddressingMode(cpu, zeroPage)
+  let value = cpu.memory[result.address]
+  cpu.printOpCode(result.address, &"ORA ${result.address.toHex:02} = {value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 3 # ORA ZeroPage takes 3 cycles
+
 
 proc opLDX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, immediate)
@@ -256,6 +272,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x03] = OpcodeInfo(handler: opSLO_indirectX, mode: indirectX, cycles: 8, mnemonic: "SLO") # Unofficial
   opcodeTable[0x04] = OpcodeInfo(handler: opNOP_zp, mode: zeroPage, cycles: 3, mnemonic: "NOP") # Unofficial
 
+  opcodeTable[0x05] = OpcodeInfo(handler: opORA_zp, mode: zeroPage, cycles: 3, mnemonic: "ORA")
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
