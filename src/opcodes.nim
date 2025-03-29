@@ -164,8 +164,25 @@ proc opASL_zp*(cpu: var CPU) =
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 5 # ASL ZeroPage takes 5 cycles
+ 
+ 
+proc opPHP*(cpu: var CPU) =
+  ## PHP Implied - Opcode 0x08
+  ## Action: Push Processor Status onto Stack (with bits 4 & 5 set)
+  cpu.printOpCode("PHP")
 
+  # Get current status and set bits 4 (Break) and 5 (Unused) for the pushed value
+  let currentStatus = cpu.getFlags()
+  let statusToPush = currentStatus or 0x30'u8 # Set bits 4 and 5
 
+  # Push the modified status onto the stack
+  cpu.push(statusToPush)
+
+  # Update PC and Cycles
+  cpu.PC += 1 # Implied addressing, 1 byte instruction
+  cpu.cycles += 3 # PHP takes 3 cycles
+ 
+ 
 
 proc opSLO_zp*(cpu: var CPU) =
   ## SLO ZeroPage - Opcode 0x07 (unofficial)
@@ -324,6 +341,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x04] = OpcodeInfo(handler: opNOP_zp, mode: zeroPage, cycles: 3, mnemonic: "NOP") # Unofficial
 
   opcodeTable[0x05] = OpcodeInfo(handler: opORA_zp, mode: zeroPage, cycles: 3, mnemonic: "ORA")
+  opcodeTable[0x08] = OpcodeInfo(handler: opPHP, mode: immediate, cycles: 3, mnemonic: "PHP") # Technically implied, using immediate for consistency
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
