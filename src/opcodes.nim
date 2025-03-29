@@ -101,6 +101,31 @@ proc opORA_indirectX*(cpu: var CPU) =
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 6 + uint16(result.extraCycles) # ORA (Indirect,X) takes 6 cycles
 
+
+proc opSLO_indirectX*(cpu: var CPU) =
+  ## SLO (Indirect,X) - Opcode 0x03 (unofficial)
+  ## Action: M = M << 1; A = A | M
+  let result = resolveAddressingMode(cpu, indirectX)
+  let addr = result.address
+  let originalValue = cpu.memory[addr]
+  cpu.printOpCode(addr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {addr.toHex:04} = {originalValue.toHex:02}")
+
+  # 1. ASL on M
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[addr] = shiftedValue
+
+  # 3. ORA with Accumulator
+  cpu.A = cpu.A or shiftedValue
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 8 + uint16(result.extraCycles) # SLO (Indirect,X) takes 8 cycles
+
 proc opLDX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, immediate)
   cpu.printOpCode(result.value, &"LDX ${result.value.toHex:02}")
@@ -213,6 +238,7 @@ proc setupOpcodeTable*() =
   # Set up known opcodes
   opcodeTable[0x00] = OpcodeInfo(handler: opBRK, mode: immediate, cycles: 7, mnemonic: "BRK")
   opcodeTable[0x01] = OpcodeInfo(handler: opORA_indirectX, mode: indirectX, cycles: 6, mnemonic: "ORA")
+  opcodeTable[0x03] = OpcodeInfo(handler: opSLO_indirectX, mode: indirectX, cycles: 8, mnemonic: "SLO") # Unofficial
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
