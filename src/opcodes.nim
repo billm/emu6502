@@ -222,6 +222,30 @@ proc opASL_acc*(cpu: var CPU) =
   cpu.cycles += 2 # ASL Accumulator takes 2 cycles
 
 
+
+
+proc opANC_imm*(cpu: var CPU) =
+  ## ANC Immediate - Opcode 0x0B (unofficial)
+  ## Action: A = A & M; C = N
+  let result = resolveAddressingMode(cpu, immediate)
+  let value = result.value
+  cpu.printOpCode(value, &"ANC #${value.toHex:02}")
+
+  # 1. Perform AND operation
+  cpu.A = cpu.A and value
+
+  # 2. Update N and Z flags based on the result in A
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  # 3. Set Carry flag equal to the Negative flag
+  cpu.C = cpu.N
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 2 # ANC Immediate takes 2 cycles
+
+
  
 
 proc opSLO_zp*(cpu: var CPU) =
@@ -366,8 +390,6 @@ proc opNOP_zp*(cpu: var CPU) =
 
 
 proc setupOpcodeTable*() =
-  # Initialize all opcodes to nil
-  opcodeTable[0x02] = OpcodeInfo(handler: opKIL, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
   for i in 0..255:
     opcodeTable[i].handler = nil
     opcodeTable[i].cycles = 0
@@ -375,6 +397,7 @@ proc setupOpcodeTable*() =
     opcodeTable[i].mnemonic = "???"
 
   # Set up known opcodes
+  opcodeTable[0x02] = OpcodeInfo(handler: opKIL, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
   opcodeTable[0x00] = OpcodeInfo(handler: opBRK, mode: immediate, cycles: 7, mnemonic: "BRK")
   opcodeTable[0x01] = OpcodeInfo(handler: opORA_indirectX, mode: indirectX, cycles: 6, mnemonic: "ORA")
   opcodeTable[0x03] = OpcodeInfo(handler: opSLO_indirectX, mode: indirectX, cycles: 8, mnemonic: "SLO") # Unofficial
@@ -387,6 +410,8 @@ proc setupOpcodeTable*() =
   opcodeTable[0x0A] = OpcodeInfo(handler: opASL_acc, mode: immediate, cycles: 2, mnemonic: "ASL") # Accumulator mode
 
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
+  opcodeTable[0x0B] = OpcodeInfo(handler: opANC_imm, mode: immediate, cycles: 2, mnemonic: "ANC") # Unofficial
+
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
   opcodeTable[0x85] = OpcodeInfo(handler: opSTA, mode: zeroPage, cycles: 3, mnemonic: "STA")
