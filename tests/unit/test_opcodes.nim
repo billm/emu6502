@@ -58,20 +58,46 @@ suite "Opcode Unit Tests":
       cpu.SP == oldSP - 3  # Should push 3 bytes (PCH, PCL, P)
       cpu.cycles >= 7      # BRK takes 7 cycles
   # As opcode handlers are implemented, add specific tests for each one.
-  # For example:
-  #
-  # test "LDA immediate mode sets accumulator and flags":
-  #   # Setup LDA #$42 (A9 42)
-  #   mem.mem[0x300] = 0xA9  # LDA immediate
-  #   mem.mem[0x301] = 0x42  # Value to load
-  #   
-  #   cpu.execute()
-  #   
-  #   check:
-  #     cpu.A == 0x42        # Accumulator has value
-  #     not cpu.Z            # Zero flag clear
-  #     not cpu.N            # Negative flag clear
-  #     cpu.PC == 0x302     # PC advanced past instruction
+  
+  test "LDA immediate mode sets accumulator and flags - positive value":
+    # Setup LDA #$42 (A9 42)
+    cpu.PC = 0x300
+    mem.mem[0x300] = 0xA9  # LDA immediate
+    mem.mem[0x301] = 0x42  # Value to load
+    cpu.cycles = 0  # Reset cycles
+    
+    # Execute just one instruction
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+    
+    check:
+      cpu.A == 0x42        # Accumulator has value
+      not cpu.Z            # Zero flag clear (0x42 != 0)
+      not cpu.N            # Negative flag clear (bit 7 = 0)
+      cpu.PC == 0x302     # PC advanced past instruction + operand
+      cpu.cycles == 2      # LDA immediate takes 2 cycles
+
+  test "LDA immediate mode sets zero flag":
+    cpu.PC = 0x300
+    mem.mem[0x300] = 0xA9  # LDA immediate
+    mem.mem[0x301] = 0x00  # Load zero
+    
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+    
+    check cpu.Z == true    # Zero flag should be set
+
+  test "LDA immediate mode sets negative flag":
+    cpu.PC = 0x300
+    mem.mem[0x300] = 0xA9  # LDA immediate
+    mem.mem[0x301] = 0x80  # Load negative value (bit 7 set)
+    
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+    
+    check:
+      cpu.N == true        # Negative flag should be set
+      not cpu.Z            # Zero flag should be clear
   
   # More opcode tests will be added here as they are implemented,
   # following Test-Driven Development principles
