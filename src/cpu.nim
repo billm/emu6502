@@ -11,8 +11,8 @@ export types.Memory
 
 # Execute the opcode bytestream
 proc execute*(cpu: var CPU) =
-  echo "Registers initialized as:"
-  cpu.debug(true)
+  #echo "Registers initialized as:"
+  #cpu.debug(true)
 
   while true:
     let opcode = cpu.memory[cpu.PC]
@@ -29,9 +29,9 @@ proc execute*(cpu: var CPU) =
     if opcode == 0x00 and oldPC == cpu.PC:
       break
 
-  echo "\nAt program exit, the CPU state is:"
-  cpu.debug(true)
-  echo "Done"
+  #echo "\nAt program exit, the CPU state is:"
+  #cpu.debug(true)
+  #echo "Done"
 
 # Set up the CPU, registers and memory as it should be
 # on initialization or reset
