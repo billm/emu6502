@@ -1475,3 +1475,134 @@ suite "Opcode Unit Tests":
       cpu.PC == initialPC + 3
       cpu.cycles == initialCycles + 4
 
+
+  # --- Tests for Opcode 0x0E: ASL Absolute ---
+
+  test "ASL Absolute - Basic Shift, No Carry, Positive to Negative":
+    # Setup: ASL $1234
+    # Value at $1234 = $41 (01000001)
+    # Expected result = $82 (10000010)
+    # Expected flags: N=1, Z=0, C=0
+    cpu.PC = 0x0600
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C and Z initially
+    cpu.cycles = 0
+    let targetAddr: Address = 0x1234
+    let initialValue: Byte = 0x41
+    let expectedValue: Byte = 0x82
+
+    mem.mem[cpu.PC] = 0x0E      # ASL Absolute opcode
+    mem.mem[cpu.PC + 1] = lowByte(targetAddr) # Low byte of address
+    mem.mem[cpu.PC + 2] = highByte(targetAddr) # High byte of address
+    mem.mem[targetAddr] = initialValue
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0E handler not implemented")
+
+    check:
+      mem.mem[targetAddr] == expectedValue # Memory updated
+      cpu.N == true             # Negative flag set
+      not cpu.Z                 # Zero flag clear
+      not cpu.C                 # Carry flag clear (original bit 7 was 0)
+      cpu.PC == 0x0603          # PC advanced by 3
+      cpu.cycles == 6           # ASL Absolute takes 6 cycles
+
+  test "ASL Absolute - Shift with Carry, Negative to Positive":
+    # Setup: ASL $ABCD
+    # Value at $ABCD = $81 (10000001)
+    # Expected result = $02 (00000010)
+    # Expected flags: N=0, Z=0, C=1
+    cpu.PC = 0x0700
+    cpu.setFlags(0x20'u8 or 0x80'u8 or 0x02'u8) # Set N and Z initially
+    cpu.cycles = 0
+    let targetAddr: Address = 0xABCD
+    let initialValue: Byte = 0x81
+    let expectedValue: Byte = 0x02
+
+    mem.mem[cpu.PC] = 0x0E      # ASL Absolute opcode
+    mem.mem[cpu.PC + 1] = lowByte(targetAddr) # Low byte of address
+    mem.mem[cpu.PC + 2] = highByte(targetAddr) # High byte of address
+    mem.mem[targetAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0E handler not implemented")
+
+    check:
+      mem.mem[targetAddr] == expectedValue # Memory updated
+      not cpu.N                 # Negative flag clear
+      not cpu.Z                 # Zero flag clear
+      cpu.C == true             # Carry flag set (original bit 7 was 1)
+      cpu.PC == 0x0703          # PC advanced by 3
+      cpu.cycles == 6           # ASL Absolute takes 6 cycles
+
+  test "ASL Absolute - Shift Resulting in Zero":
+    # Setup: ASL $BEEF
+    # Value at $BEEF = $80 (10000000)
+    # Expected result = $00 (00000000)
+    # Expected flags: N=0, Z=1, C=1
+    cpu.PC = 0x0800
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially
+    cpu.cycles = 0
+    let targetAddr: Address = 0xBEEF
+    let initialValue: Byte = 0x80
+    let expectedValue: Byte = 0x00
+
+    mem.mem[cpu.PC] = 0x0E      # ASL Absolute opcode
+    mem.mem[cpu.PC + 1] = lowByte(targetAddr) # Low byte of address
+    mem.mem[cpu.PC + 2] = highByte(targetAddr) # High byte of address
+    mem.mem[targetAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0E handler not implemented")
+
+    check:
+      mem.mem[targetAddr] == expectedValue # Memory updated
+      not cpu.N                 # Negative flag clear
+      cpu.Z == true             # Zero flag set
+      cpu.C == true             # Carry flag set (original bit 7 was 1)
+      cpu.PC == 0x0803          # PC advanced by 3
+      cpu.cycles == 6           # ASL Absolute takes 6 cycles
+
+  test "ASL Absolute - Shift Resulting in Negative, No Carry":
+    # Setup: ASL $CAFE
+    # Value at $CAFE = $40 (01000000)
+    # Expected result = $80 (10000000)
+    # Expected flags: N=1, Z=0, C=0
+    cpu.PC = 0x0900
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C and Z initially
+    cpu.cycles = 0
+    let targetAddr: Address = 0xCAFE
+    let initialValue: Byte = 0x40
+    let expectedValue: Byte = 0x80
+
+    mem.mem[cpu.PC] = 0x0E      # ASL Absolute opcode
+    mem.mem[cpu.PC + 1] = lowByte(targetAddr) # Low byte of address
+    mem.mem[cpu.PC + 2] = highByte(targetAddr) # High byte of address
+    mem.mem[targetAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0E handler not implemented")
+
+    check:
+      mem.mem[targetAddr] == expectedValue # Memory updated
+      cpu.N == true             # Negative flag set
+      not cpu.Z                 # Zero flag clear
+      not cpu.C                 # Carry flag clear (original bit 7 was 0)
+      cpu.PC == 0x0903          # PC advanced by 3
+      cpu.cycles == 6           # ASL Absolute takes 6 cycles
+
