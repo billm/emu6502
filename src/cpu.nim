@@ -44,7 +44,7 @@ proc initialize*(cpu: var CPU, mem: Memory, PC: uint16) =
   cpu.PC = PC
   cpu.cycles = 0
   cpu.memory = mem
-  echo "Initializing first 8 bytes of memory to 0xfeedface 0xdeadbeef"
+  # echo "Initializing first 8 bytes of memory to 0xfeedface 0xdeadbeef"
   cpu.memory[0] = 0xfe
   cpu.memory[1] = 0xed
   cpu.memory[2] = 0xfa
