@@ -99,14 +99,12 @@ proc resolveRelative*(cpu: var CPU): AddressingResult =
   let offset = cpu.memory[cpu.PC + 1]
   result.operandBytes = 1
   result.extraCycles = 0
+
+  # Relative branch target is PC+2 plus signed offset
+  let nextPC = cpu.PC + 2
   # Calculate target address
-  if offset > 127:
-    # Negative jump - convert to signed value
-    let signed_offset = cast[int8](offset)
-    result.address = cpu.PC + 2 + cast[uint16](signed_offset)
-  else:
-    # Positive jump
-    result.address = cpu.PC + 2 + offset.uint16
+  let signed_offset = cast[int8](offset)  # Always treat as signed
+  result.address = uint16(int(nextPC) + int(signed_offset))
   # Add cycle if page boundary crossed
   if (cpu.PC and 0xFF00) != (result.address and 0xFF00):
     result.extraCycles = 1

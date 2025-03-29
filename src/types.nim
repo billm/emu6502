@@ -1,6 +1,10 @@
 type
 
-  BackingMemory* = array[65535, uint8]
+  UnimplementedOpcodeError* = ref object of CatchableError
+    opcode*: byte
+    pc*: uint16
+
+  BackingMemory* = array[65536, uint8]  # Full 64K address space (0x0000 to 0xFFFF)
 
   Memory* = ref object
     mem*: BackingMemory

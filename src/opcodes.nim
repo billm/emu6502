@@ -22,8 +22,13 @@ var opcodeTable*: array[256, OpcodeInfo]
 
 proc opBRK(cpu: var CPU) =
   cpu.printOpCode("BRK")
+  cpu.PC += 1  # Skip the BRK instruction
+  cpu.push16(cpu.PC)  # Push next instruction address
+  cpu.B = true  # Set break flag
+  cpu.push(cpu.flags())  # Push processor status with B flag set
+  cpu.I = true  # Set interrupt disable flag
+  cpu.PC = (cpu.memory[0xFFFE].uint16 or (cpu.memory[0xFFFF].uint16 shl 8))  # Load IRQ vector
   cpu.cycles += 7  # BRK takes 7 cycles
-  # TODO: Implement proper BRK behavior (push PC+2, push status, set I flag, load IRQ vector)
 
 proc opJSR(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, absolute)

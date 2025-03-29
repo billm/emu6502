@@ -12,3 +12,11 @@ bin           = @["emu6502"]
 
 requires "nim >= 0.17.2"
 requires "docopt >= 0.6.7" # Argument parsing
+
+# Tasks
+task test, "Run test suite":
+  exec "nim c -r tests/unit/test_cpu.nim"
+  exec "nim c -r tests/unit/test_memory.nim"
+  exec "nim c -r tests/unit/test_opcodes.nim"
+  exec "nim c -r tests/integration/test_programs.nim"
+

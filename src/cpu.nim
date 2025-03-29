@@ -17,14 +17,17 @@ proc execute*(cpu: var CPU) =
   while true:
     let opcode = cpu.memory[cpu.PC]
     let info = opcodeTable[opcode]
+    let oldPC = cpu.PC  # Save PC for detecting BRK
     
     if info.handler == nil:
-      echo &"\r\nUnknown opcode: {opcode.toHex} @ PC: 0x{cpu.PC.toHex}"
-      echo "Exiting..."
-      break
+      raise UnimplementedOpcodeError(opcode: opcode, pc: cpu.PC, msg: &"Unimplemented opcode: {opcode.toHex} @ PC: 0x{cpu.PC.toHex}")
     
     info.handler(cpu)
     cpu.debug()
+
+    # Exit if we hit BRK (which doesn't update PC in its handler)
+    if opcode == 0x00 and oldPC == cpu.PC:
+      break
 
   echo "\nAt program exit, the CPU state is:"
   cpu.debug(true)
