@@ -226,6 +226,21 @@ proc opKIL(cpu: var CPU) =
   cpu.cycles += 2 # Nominal cycle count for KIL
 
 
+
+proc opNOP_zp*(cpu: var CPU) =
+  ## NOP ZeroPage - Opcode 0x04 (unofficial)
+  ## Action: Fetches operand, reads from ZeroPage address, discards value.
+  let result = resolveAddressingMode(cpu, zeroPage)
+  # The read happens implicitly within resolveAddressingMode for zp
+  cpu.printOpCode(result.address, &"NOP ${result.address.toHex:02}")
+
+  # No operation performed with the value read
+  # No flags or registers are affected
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 3 # NOP zp takes 3 cycles
+
+
 proc setupOpcodeTable*() =
   # Initialize all opcodes to nil
   opcodeTable[0x02] = OpcodeInfo(handler: opKIL, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
@@ -239,6 +254,8 @@ proc setupOpcodeTable*() =
   opcodeTable[0x00] = OpcodeInfo(handler: opBRK, mode: immediate, cycles: 7, mnemonic: "BRK")
   opcodeTable[0x01] = OpcodeInfo(handler: opORA_indirectX, mode: indirectX, cycles: 6, mnemonic: "ORA")
   opcodeTable[0x03] = OpcodeInfo(handler: opSLO_indirectX, mode: indirectX, cycles: 8, mnemonic: "SLO") # Unofficial
+  opcodeTable[0x04] = OpcodeInfo(handler: opNOP_zp, mode: zeroPage, cycles: 3, mnemonic: "NOP") # Unofficial
+
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
