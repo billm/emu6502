@@ -246,6 +246,26 @@ proc opANC_imm*(cpu: var CPU) =
   cpu.cycles += 2 # ANC Immediate takes 2 cycles
 
 
+
+
+proc opNOP_abs*(cpu: var CPU) =
+  ## NOP Absolute - Opcode 0x0C (unofficial)
+  ## Action: Fetches operand address, reads from address, discards value.
+  let result = resolveAddressingMode(cpu, absolute)
+  # The read from the effective address happens implicitly within resolveAddressingMode
+  # for absolute addressing mode when it fetches the address bytes.
+  # An additional dummy read cycle might be needed depending on exact hardware behavior,
+  # but the core absolute addressing fetch reads the target location.
+  # For now, we assume resolveAddressingMode handles the necessary memory access cycle.
+  cpu.printOpCode(result.address, &"NOP ${result.address.toHex:04}")
+
+  # No operation performed with the value read
+  # No flags or registers are affected
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
+  cpu.cycles += 4 # NOP abs takes 4 cycles
+
+
  
 
 proc opSLO_zp*(cpu: var CPU) =
@@ -412,6 +432,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x0B] = OpcodeInfo(handler: opANC_imm, mode: immediate, cycles: 2, mnemonic: "ANC") # Unofficial
 
+  opcodeTable[0x0C] = OpcodeInfo(handler: opNOP_abs, mode: absolute, cycles: 4, mnemonic: "NOP") # Unofficial
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
   opcodeTable[0x85] = OpcodeInfo(handler: opSTA, mode: zeroPage, cycles: 3, mnemonic: "STA")

@@ -1331,3 +1331,51 @@ suite "Opcode Unit Tests":
       cpu.cycles == initialCycles + 2
 
 
+
+
+  # --- Tests for Opcode 0x0C: NOP Absolute (Unofficial) ---
+
+  test "NOP Absolute (0x0C) - No Operation":
+    # Setup: NOP $BEEF (0C EF BE)
+    # Action: Reads from $BEEF but does nothing with the value.
+    # Expected: PC+=3, Cycles+=4. A, X, Y, SP, Flags unchanged.
+    cpu.PC = 0x0E00
+    cpu.A = 0xAA
+    cpu.X = 0xBB
+    cpu.Y = 0xCC
+    cpu.SP = 0xFD
+    cpu.setFlags(0b11001100) # Set some flags initially
+    cpu.cycles = 10
+
+    mem.mem[0x0E00] = 0x0C  # NOP Absolute opcode
+    mem.mem[0x0E01] = 0xEF  # Low byte of address
+    mem.mem[0x0E02] = 0xBE  # High byte of address
+    mem.mem[0xBEEF] = 0xDD  # Value at the absolute address (should be read but ignored)
+
+    let initialA = cpu.A
+    let initialX = cpu.X
+    let initialY = cpu.Y
+    let initialSP = cpu.SP
+    let initialFlags = cpu.flags()
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0C handler not implemented yet.") # Fail explicitly
+
+    check:
+      # State unchanged
+      cpu.A == initialA
+      cpu.X == initialX
+      cpu.Y == initialY
+      cpu.SP == initialSP
+      cpu.flags() == initialFlags
+
+      # PC and Cycles updated
+      cpu.PC == initialPC + 3
+      cpu.cycles == initialCycles + 4
+
