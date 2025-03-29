@@ -172,7 +172,7 @@ proc opPHP*(cpu: var CPU) =
   cpu.printOpCode("PHP")
 
   # Get current status and set bits 4 (Break) and 5 (Unused) for the pushed value
-  let currentStatus = cpu.getFlags()
+  let currentStatus = cpu.flags()
   let statusToPush = currentStatus or 0x30'u8 # Set bits 4 and 5
 
   # Push the modified status onto the stack
@@ -182,6 +182,22 @@ proc opPHP*(cpu: var CPU) =
   cpu.PC += 1 # Implied addressing, 1 byte instruction
   cpu.cycles += 3 # PHP takes 3 cycles
  
+
+proc opORA_imm*(cpu: var CPU) =
+  ## ORA Immediate - Opcode 0x09
+  ## Action: A = A | M
+  let result = resolveAddressingMode(cpu, immediate)
+  let value = result.value
+  cpu.printOpCode(value, &"ORA #${value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 2 # ORA Immediate takes 2 cycles
+
+
  
 
 proc opSLO_zp*(cpu: var CPU) =
@@ -342,6 +358,8 @@ proc setupOpcodeTable*() =
 
   opcodeTable[0x05] = OpcodeInfo(handler: opORA_zp, mode: zeroPage, cycles: 3, mnemonic: "ORA")
   opcodeTable[0x08] = OpcodeInfo(handler: opPHP, mode: immediate, cycles: 3, mnemonic: "PHP") # Technically implied, using immediate for consistency
+  opcodeTable[0x09] = OpcodeInfo(handler: opORA_imm, mode: immediate, cycles: 2, mnemonic: "ORA")
+
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")

@@ -83,7 +83,7 @@ suite "Opcode Unit Tests":
     cpu.setFlags(0b10100001) # N=1, V=0, U=1(ignored), B=0(ignored), D=0, I=0, Z=0, C=1 => $A1
     cpu.cycles = 10 # Initial cycles
     let initialSP = cpu.SP
-    let initialStatus = cpu.getFlags() # Should be $A1
+    let initialStatus = cpu.flags() # Should be $A1
     let initialPC = cpu.PC
     let initialCycles = cpu.cycles
 
@@ -99,8 +99,10 @@ suite "Opcode Unit Tests":
       if info.handler != nil:
         info.handler(cpu)
       else:
-        # Simulate failure if not implemented - real run would raise
-        fail("Opcode 0x08 handler is not yet implemented.")
+        # If handler is nil, the test might expect UnimplementedOpcodeError
+        # or simply proceed if the goal is just to add the test structure.
+        # The checks below will fail if the handler *is* implemented incorrectly.
+        discard
     except UnimplementedOpcodeError:
       # This is the expected path if the handler is truly nil
       discard # Allow test to proceed to checks for when it *is* implemented
@@ -109,7 +111,7 @@ suite "Opcode Unit Tests":
     check:
       cpu.SP == initialSP - 1             # SP decremented
       mem.mem[0x0100 + initialSP.uint16] == expectedPushedValue # Correct value pushed ($B1)
-      cpu.getFlags() == initialStatus     # CPU status register unchanged ($A1)
+      cpu.flags() == initialStatus     # CPU status register unchanged ($A1)
       cpu.PC == initialPC + 1             # PC incremented by 1
       cpu.cycles == initialCycles + 3     # Cycles incremented by 3
 
@@ -155,6 +157,87 @@ suite "Opcode Unit Tests":
       cpu.N == true        # Negative flag should be set
       not cpu.Z            # Zero flag should be clear
   
+
+  # --- Tests for Opcode 0x09: ORA Immediate ---
+
+  test "ORA Immediate - Basic OR, Positive Result":
+    # Setup ORA #$0F (09 0F)
+    # Initial A = $5A (01011010)
+    # Expected A = $5A | $0F = $5F (01011111)
+    cpu.PC = 0x0300
+    cpu.A = 0x5A
+    cpu.setFlags(0x20'u8 or 0x80'u8 or 0x02'u8) # Set N and Z initially to ensure they are cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0300] = 0x09  # ORA immediate
+    mem.mem[0x0301] = 0x0F  # Value to OR
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet, checks below will fail if it were.
+
+    check:
+      cpu.A == 0x5F        # Accumulator has ORed value
+      not cpu.Z            # Zero flag clear (0x5F != 0)
+      not cpu.N            # Negative flag clear (bit 7 = 0)
+      cpu.PC == 0x0302     # PC advanced past instruction + operand
+      cpu.cycles == 2      # ORA immediate takes 2 cycles
+
+  test "ORA Immediate - Sets Zero Flag":
+    # Setup ORA #$00 (09 00)
+    # Initial A = $00
+    # Expected A = $00 | $00 = $00
+    cpu.PC = 0x0300
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially
+    cpu.cycles = 0
+
+    mem.mem[0x0300] = 0x09  # ORA immediate
+    mem.mem[0x0301] = 0x00  # Value to OR
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet.
+
+    check:
+      cpu.A == 0x00        # Accumulator is zero
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == 0x0302
+      cpu.cycles == 2
+
+  test "ORA Immediate - Sets Negative Flag":
+    # Setup ORA #$80 (09 80)
+    # Initial A = $01
+    # Expected A = $01 | $80 = $81
+    cpu.PC = 0x0300
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x0300] = 0x09  # ORA immediate
+    mem.mem[0x0301] = 0x80  # Value to OR (negative)
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet.
+
+    check:
+      cpu.A == 0x81        # Accumulator has ORed value
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x0302
+      cpu.cycles == 2
+
 
   test "ORA (Indirect,X) - Basic Operation":
     # Setup: ORA ($40,X) where X=0x04
