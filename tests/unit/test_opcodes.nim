@@ -117,5 +117,136 @@ suite "Opcode Unit Tests":
       cpu.N == true        # Negative flag should be set
       not cpu.Z            # Zero flag should be clear
   
+
+  test "ORA (Indirect,X) - Basic Operation":
+    # Setup: ORA ($40,X) where X=0x04
+    # Zero page address = $40 + $04 = $44
+    # Effective address stored at $0044/$0045 is $1234
+    # Value at $1234 is $55
+    # Initial A = $AA
+    # Expected A = $AA | $55 = $FF
+    cpu.PC = 0x0200
+    cpu.X = 0x04
+    cpu.A = 0xAA
+    cpu.setFlags(0x20'u8) # Clear flags initially
+    cpu.cycles = 0
+
+    mem.mem[0x0200] = 0x01  # ORA (Indirect,X)
+    mem.mem[0x0201] = 0x40  # Zero page base address
+
+    # Setup the indirect address lookup in zero page
+    mem.mem[0x0044] = 0x34  # Low byte of effective address ($1234)
+    mem.mem[0x0045] = 0x12  # High byte of effective address ($1234)
+
+    # Setup the value at the effective address
+    mem.mem[0x1234] = 0x55
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (AA | 55 = FF)
+      not cpu.Z            # Zero flag clear (FF != 0)
+      cpu.N == true        # Negative flag set (bit 7 of FF is 1)
+      cpu.PC == 0x0202     # PC advanced by 2
+      cpu.cycles == 6      # ORA (Indirect,X) takes 6 cycles
+
+  test "ORA (Indirect,X) - Zero Page Wrap-around":
+    # Setup: ORA ($FE,X) where X=0x03
+    # Zero page address = $FE + $03 = $101 -> wraps to $01
+    # Effective address stored at $0001/$0002 is $BEEF
+    # Value at $BEEF is $0F
+    # Initial A = $F0
+    # Expected A = $F0 | $0F = $FF
+    cpu.PC = 0x0200
+    cpu.X = 0x03
+    cpu.A = 0xF0
+    cpu.setFlags(0x20'u8)
+    cpu.cycles = 0
+
+    mem.mem[0x0200] = 0x01  # ORA (Indirect,X)
+    mem.mem[0x0201] = 0xFE  # Zero page base address
+
+    # Setup the indirect address lookup in zero page (with wrap)
+    mem.mem[0x0001] = 0xEF  # Low byte of effective address ($BEEF)
+    mem.mem[0x0002] = 0xBE  # High byte of effective address ($BEEF)
+
+    # Setup the value at the effective address
+    mem.mem[0xBEEF] = 0x0F
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (F0 | 0F = FF)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x0202     # PC advanced by 2
+      cpu.cycles == 6      # Cycles correct
+
+  test "ORA (Indirect,X) - Sets Zero Flag":
+    # Setup: ORA ($10,X) where X=0x02 -> ZP addr $12
+    # Effective address at $0012/$0013 is $C000
+    # Value at $C000 is $00
+    # Initial A = $00
+    # Expected A = $00 | $00 = $00
+    cpu.PC = 0x0200
+    cpu.X = 0x02
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8)
+    cpu.N = true # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0200] = 0x01  # ORA (Indirect,X)
+    mem.mem[0x0201] = 0x10  # Zero page base address
+
+    mem.mem[0x0012] = 0x00  # Low byte of $C000
+    mem.mem[0x0013] = 0xC0  # High byte of $C000
+    mem.mem[0xC000] = 0x00  # Value to OR
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+
+    check:
+      cpu.A == 0x00        # Accumulator is zero
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == 0x0202
+      cpu.cycles == 6
+
+  test "ORA (Indirect,X) - Clears Negative Flag":
+    # Setup: ORA ($20,X) where X=0x05 -> ZP addr $25
+    # Effective address at $0025/$0026 is $D000
+    # Value at $D000 is $0F
+    # Initial A = $70 (N flag clear)
+    # Expected A = $70 | $0F = $7F (N flag still clear)
+    cpu.PC = 0x0200
+    cpu.X = 0x05
+    cpu.A = 0x70
+    cpu.setFlags(0x20'u8)
+    cpu.N = true # Set N initially to ensure it gets cleared if result is not negative
+    cpu.cycles = 0
+
+    mem.mem[0x0200] = 0x01  # ORA (Indirect,X)
+    mem.mem[0x0201] = 0x20  # Zero page base address
+
+    mem.mem[0x0025] = 0x00  # Low byte of $D000
+    mem.mem[0x0026] = 0xD0  # High byte of $D000
+    mem.mem[0xD000] = 0x0F  # Value to OR
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    info.handler(cpu)
+
+    check:
+      cpu.A == 0x7F        # Accumulator updated (70 | 0F = 7F)
+      not cpu.Z            # Zero flag clear
+      not cpu.N            # Negative flag clear (bit 7 is 0)
+      cpu.PC == 0x0202
+      cpu.cycles == 6
+
   # More opcode tests will be added here as they are implemented,
   # following Test-Driven Development principles

@@ -87,6 +87,20 @@ proc opLDA_indirectX(cpu: var CPU) =
   cpu.setZ(cpu.A)
   cpu.setN(cpu.A)
 
+
+proc opORA_indirectX*(cpu: var CPU) =
+  ## ORA (Indirect,X) - Opcode 0x01
+  let result = resolveAddressingMode(cpu, indirectX)
+  let value = cpu.memory[result.address]
+  cpu.printOpCode(result.address, &"ORA (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {result.address.toHex:04} = {value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 6 + uint16(result.extraCycles) # ORA (Indirect,X) takes 6 cycles
+
 proc opLDX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, immediate)
   cpu.printOpCode(result.value, &"LDX ${result.value.toHex:02}")
@@ -188,6 +202,7 @@ proc setupOpcodeTable*() =
 
   # Set up known opcodes
   opcodeTable[0x00] = OpcodeInfo(handler: opBRK, mode: immediate, cycles: 7, mnemonic: "BRK")
+  opcodeTable[0x01] = OpcodeInfo(handler: opORA_indirectX, mode: indirectX, cycles: 6, mnemonic: "ORA")
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
