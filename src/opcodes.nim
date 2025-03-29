@@ -472,6 +472,34 @@ proc opSLO_abs*(cpu: var CPU) =
   cpu.cycles += 6 # SLO Absolute takes 6 cycles
 
 
+
+
+proc opSLO_indirectY*(cpu: var CPU) =
+  ## SLO (Indirect),Y - Opcode 0x13 (unofficial)
+  ## Action: M = M << 1; A = A | M
+  let result = resolveAddressingMode(cpu, indirectY)
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02}),Y @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+
+  # 1. ASL on M
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[effectiveAddr] = shiftedValue
+
+  # 3. ORA with Accumulator using the *shifted* value
+  cpu.A = cpu.A or shiftedValue
+  cpu.setZ(cpu.A) # Z flag based on final A
+  cpu.setN(cpu.A) # N flag based on final A
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  # Note: SLO (Indirect),Y always takes 8 cycles, regardless of page cross.
+  # The extraCycles from resolveAddressingMode are ignored for this specific opcode.
+  cpu.cycles += 8
+
 proc opNOP_zp*(cpu: var CPU) =
   ## NOP ZeroPage - Opcode 0x04 (unofficial)
   ## Action: Fetches operand, reads from ZeroPage address, discards value.
@@ -550,6 +578,8 @@ proc setupOpcodeTable*() =
   opcodeTable[0x0F] = OpcodeInfo(handler: opSLO_abs, mode: absolute, cycles: 6, mnemonic: "SLO") # Unofficial
   opcodeTable[0x11] = OpcodeInfo(handler: opORA_indirectY, mode: indirectY, cycles: 5, mnemonic: "ORA") # Cycles=5 base, +1 if page crossed
   opcodeTable[0x12] = OpcodeInfo(handler: opKIL_12, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
+  opcodeTable[0x13] = OpcodeInfo(handler: opSLO_indirectY, mode: indirectY, cycles: 8, mnemonic: "SLO") # Unofficial
+
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")

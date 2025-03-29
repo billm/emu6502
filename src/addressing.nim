@@ -84,7 +84,10 @@ proc resolveIndirectY*(cpu: var CPU): AddressingResult =
   ## Indirect Y addressing mode ($XX),Y
   ## Example: LDA ($42),Y
   let zpAddr = cpu.memory[cpu.PC + 1]
-  let baseAddr = cpu.memory.read16(zpAddr.uint16)
+  # Handle zero-page wrap-around for the 16-bit address fetch
+  let lowByte = cpu.memory[zpAddr.uint16]
+  let highByte = cpu.memory[((zpAddr + 1) and 0xFF).uint16] # Wrap high byte address
+  let baseAddr = (highByte.uint16 shl 8) or lowByte.uint16
   result.address = baseAddr + cpu.Y
   result.operandBytes = 1
   # Add cycle if page boundary crossed

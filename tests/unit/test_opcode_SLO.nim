@@ -432,3 +432,312 @@ suite "SLO Opcode Unit Tests":
       not cpu.C                 # Carry flag clear (original bit 7 of 41 was 0)
       cpu.PC == 0x0603          # PC advanced by 3
       cpu.cycles == 6           # SLO Absolute takes 6 cycles
+
+
+  # --- Tests for Opcode 0x13: SLO (Indirect),Y ---
+
+  test "SLO (Indirect),Y - Basic Operation, No Carry, No Page Cross":
+    # Setup: SLO ($30),Y where Y=0x05
+    # Zero page address = $30
+    # Base address stored at $0030/$0031 is $C120
+    # Effective address = $C120 + Y = $C120 + $05 = $C125
+    # Initial value M at $C125 is $41 (01000001)
+    # Initial A = $12 (00010010)
+    #
+    # Action:
+    # 1. ASL on M: $41 << 1 = $82 (10000010). Carry = 0.
+    # 2. Write $82 back to $C125.
+    # 3. ORA: A = A | shifted M = $12 | $82 = $92 (10010010)
+    #
+    # Expected State:
+    # A = $92
+    # Memory[$C125] = $82
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 2
+    # Cycles = Cycles + 8
+    cpu.PC = 0x0800
+    cpu.Y = 0x05
+    cpu.A = 0x12
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0800] = 0x13  # SLO (Indirect),Y
+    mem.mem[cpu.PC + 1] = 0x30  # Zero page base address - Corrected typo here
+
+    # Setup the indirect address lookup in zero page
+    mem.mem[0x0030] = 0x20  # Low byte of base address ($C120)
+    mem.mem[0x0031] = 0xC1  # High byte of base address ($C120)
+
+    # Setup the initial value at the effective address
+    mem.mem[0xC125] = 0x41
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x92             # Accumulator updated (12 | 82 = 92)
+      mem.mem[0xC125] == 0x82   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (92 != 0)
+      cpu.N == true             # Negative flag set (bit 7 of 92 is 1)
+      not cpu.C                 # Carry flag clear (original bit 7 of 41 was 0)
+      cpu.PC == 0x0802          # PC advanced by 2
+      cpu.cycles == 8           # SLO (Indirect),Y takes 8 cycles
+
+  test "SLO (Indirect),Y - Sets Carry Flag, No Page Cross":
+    # Setup: SLO ($A0),Y where Y=0x02
+    # Zero page address = $A0
+    # Base address stored at $00A0/$00A1 is $D450
+    # Effective address = $D450 + Y = $D450 + $02 = $D452
+    # Initial value M at $D452 is $81 (10000001)
+    # Initial A = $0F (00001111)
+    #
+    # Action:
+    # 1. ASL on M: $81 << 1 = $02 (00000010). Carry = 1.
+    # 2. Write $02 back to $D452.
+    # 3. ORA: A = A | shifted M = $0F | $02 = $0F (00001111)
+    #
+    # Expected State:
+    # A = $0F
+    # Memory[$D452] = $02
+    # Flags: N=0, Z=0, C=1
+    # PC = PC + 2
+    # Cycles = Cycles + 8
+    cpu.PC = 0x0900
+    cpu.Y = 0x02
+    cpu.A = 0x0F
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+
+    mem.mem[0x0900] = 0x13  # SLO (Indirect),Y
+    mem.mem[0x0901] = 0xA0  # Zero page base address
+
+    # Setup the indirect address lookup in zero page
+    mem.mem[0x00A0] = 0x50  # Low byte of base address ($D450)
+    mem.mem[0x00A1] = 0xD4  # High byte of base address ($D450)
+
+    # Setup the initial value at the effective address
+    mem.mem[0xD452] = 0x81
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x0F             # Accumulator updated (0F | 02 = 0F)
+      mem.mem[0xD452] == 0x02   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (0F != 0)
+      not cpu.N                 # Negative flag clear (bit 7 of 0F is 0)
+      cpu.C == true             # Carry flag set (original bit 7 of 81 was 1)
+      cpu.PC == 0x0902          # PC advanced by 2
+      cpu.cycles == 8           # Cycles correct
+
+  test "SLO (Indirect),Y - Sets Zero Flag, No Page Cross":
+    # Setup: SLO ($B0),Y where Y=0x01
+    # Zero page address = $B0
+    # Base address stored at $00B0/$00B1 is $E780
+    # Effective address = $E780 + Y = $E780 + $01 = $E781
+    # Initial value M at $E781 is $80 (10000000) -> ASL -> $00, C=1
+    # Initial A = $00 (00000000)
+    #
+    # Action:
+    # 1. ASL on M: $80 << 1 = $00. Carry = 1.
+    # 2. Write $00 back to $E781.
+    # 3. ORA: A = A | shifted M = $00 | $00 = $00
+    #
+    # Expected State:
+    # A = $00
+    # Memory[$E781] = $00
+    # Flags: N=0, Z=1, C=1
+    # PC = PC + 2
+    # Cycles = Cycles + 8
+    cpu.PC = 0x0A00
+    cpu.Y = 0x01
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially, clear C
+    cpu.cycles = 0
+
+    mem.mem[0x0A00] = 0x13  # SLO (Indirect),Y
+    mem.mem[0x0A01] = 0xB0  # Zero page base address
+
+    # Setup the indirect address lookup in zero page
+    mem.mem[0x00B0] = 0x80  # Low byte of base address ($E780)
+    mem.mem[0x00B1] = 0xE7  # High byte of base address ($E780)
+
+    # Setup the initial value at the effective address
+    mem.mem[0xE781] = 0x80
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x00             # Accumulator is zero
+      mem.mem[0xE781] == 0x00   # Memory updated with shifted value
+      cpu.Z == true             # Zero flag set
+      not cpu.N                 # Negative flag clear
+      cpu.C == true             # Carry flag set (original bit 7 of 80 was 1)
+      cpu.PC == 0x0A02          # PC advanced by 2
+      cpu.cycles == 8           # Cycles correct
+
+  test "SLO (Indirect),Y - Sets Negative Flag, No Page Cross":
+    # Setup: SLO ($C0),Y where Y=0x03
+    # Zero page address = $C0
+    # Base address stored at $00C0/$00C1 is $F010
+    # Effective address = $F010 + Y = $F010 + $03 = $F013
+    # Initial value M at $F013 is $40 (01000000) -> ASL -> $80, C=0
+    # Initial A = $01 (00000001)
+    #
+    # Action:
+    # 1. ASL on M: $40 << 1 = $80. Carry = 0.
+    # 2. Write $80 back to $F013.
+    # 3. ORA: A = A | shifted M = $01 | $80 = $81
+    #
+    # Expected State:
+    # A = $81
+    # Memory[$F013] = $80
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 2
+    # Cycles = Cycles + 8
+    cpu.PC = 0x0B00
+    cpu.Y = 0x03
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially
+    cpu.cycles = 0
+
+    mem.mem[0x0B00] = 0x13  # SLO (Indirect),Y
+    mem.mem[0x0B01] = 0xC0  # Zero page base address
+
+    # Setup the indirect address lookup in zero page
+    mem.mem[0x00C0] = 0x10  # Low byte of base address ($F010)
+    mem.mem[0x00C1] = 0xF0  # High byte of base address ($F010)
+
+    # Setup the initial value at the effective address
+    mem.mem[0xF013] = 0x40
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x81             # Accumulator updated (01 | 80 = 81)
+      mem.mem[0xF013] == 0x80   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      cpu.N == true             # Negative flag set
+      not cpu.C                 # Carry flag clear
+      cpu.PC == 0x0B02          # PC advanced by 2
+      cpu.cycles == 8           # Cycles correct
+
+  test "SLO (Indirect),Y - Page Crossing":
+    # Setup: SLO ($D0),Y where Y=0x85
+    # Zero page address = $D0
+    # Base address stored at $00D0/$00D1 is $C180
+    # Effective address = $C180 + Y = $C180 + $85 = $C205 (crosses page boundary)
+    # Initial value M at $C205 is $01 (00000001)
+    # Initial A = $02 (00000010)
+    #
+    # Action:
+    # 1. ASL on M: $01 << 1 = $02. Carry = 0.
+    # 2. Write $02 back to $C205.
+    # 3. ORA: A = A | shifted M = $02 | $02 = $02
+    #
+    # Expected State:
+    # A = $02
+    # Memory[$C205] = $02
+    # Flags: N=0, Z=0, C=0
+    # PC = PC + 2
+    # Cycles = Cycles + 8 (Fixed for SLO, even with page cross)
+    cpu.PC = 0x0C00
+    cpu.Y = 0x85
+    cpu.A = 0x02
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x80'u8 or 0x02'u8) # Set N,Z,C initially
+    cpu.cycles = 0
+
+    mem.mem[0x0C00] = 0x13  # SLO (Indirect),Y
+    mem.mem[0x0C01] = 0xD0  # Zero page base address
+
+    # Setup the indirect address lookup in zero page
+    mem.mem[0x00D0] = 0x80  # Low byte of base address ($C180)
+    mem.mem[0x00D1] = 0xC1  # High byte of base address ($C180)
+
+    # Setup the initial value at the effective address
+    mem.mem[0xC205] = 0x01
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x02             # Accumulator updated (02 | 02 = 02)
+      mem.mem[0xC205] == 0x02   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      not cpu.N                 # Negative flag clear
+      not cpu.C                 # Carry flag clear
+      cpu.PC == 0x0C02          # PC advanced by 2
+      cpu.cycles == 8           # Cycles correct (fixed at 8)
+
+  test "SLO (Indirect),Y - Zero Page Pointer Wrap-around":
+    # Setup: SLO ($FF),Y where Y=0x04
+    # Zero page address = $FF
+    # Base address stored at $00FF/$0000 (wraps) is $BEE0
+    # Effective address = $BEE0 + Y = $BEE0 + $04 = $BEE4
+    # Initial value M at $BEE4 is $C0 (11000000)
+    # Initial A = $03 (00000011)
+    #
+    # Action:
+    # 1. ASL on M: $C0 << 1 = $80 (10000000). Carry = 1.
+    # 2. Write $80 back to $BEE4.
+    # 3. ORA: A = A | shifted M = $03 | $80 = $83 (10000011)
+    #
+    # Expected State:
+    # A = $83
+    # Memory[$BEE4] = $80
+    # Flags: N=1, Z=0, C=1
+    # PC = PC + 2
+    # Cycles = Cycles + 8
+    cpu.PC = 0x0D00
+    cpu.Y = 0x04
+    cpu.A = 0x03
+    cpu.setFlags(0x20'u8) # Clear flags initially
+    cpu.cycles = 0
+
+    mem.mem[0x0D00] = 0x13  # SLO (Indirect),Y
+    mem.mem[0x0D01] = 0xFF  # Zero page base address
+
+    # Setup the indirect address lookup in zero page (with wrap)
+    mem.mem[0x00FF] = 0xE0  # Low byte of base address ($BEE0)
+    mem.mem[0x0000] = 0xBE  # High byte of base address ($BEE0)
+
+    # Setup the initial value at the effective address
+    mem.mem[0xBEE4] = 0xC0
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x83             # Accumulator updated (03 | 80 = 83)
+      mem.mem[0xBEE4] == 0x80   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      cpu.N == true             # Negative flag set
+      cpu.C == true             # Carry flag set
+      cpu.PC == 0x0D02          # PC advanced by 2
+      cpu.cycles == 8           # Cycles correct
