@@ -1060,3 +1060,146 @@ suite "Opcode Unit Tests":
 
 
   
+
+  # --- Tests for Opcode 0x0A: ASL Accumulator ---
+
+  test "ASL Accumulator - Basic Shift, No Carry/Zero/Negative":
+    # Setup ASL (0A)
+    # Initial A = $01 (00000001)
+    # Expected A = $02 (00000010), C=0, Z=0, N=0
+    cpu.PC = 0x0600
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8 or 0x80'u8) # Set C, Z, N initially to ensure they are cleared
+    cpu.cycles = 0
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    mem.mem[cpu.PC] = 0x0A  # ASL Accumulator
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0A handler not implemented")
+
+    check:
+      cpu.A == 0x02        # Accumulator shifted left
+      not cpu.C            # Carry flag clear (original bit 7 was 0)
+      not cpu.Z            # Zero flag clear (result 0x02 != 0)
+      not cpu.N            # Negative flag clear (result bit 7 is 0)
+      cpu.PC == initialPC + 1 # PC incremented by 1
+      cpu.cycles == initialCycles + 2 # Cycles incremented by 2
+
+  test "ASL Accumulator - Sets Zero Flag":
+    # Setup ASL (0A)
+    # Initial A = $00 (00000000)
+    # Expected A = $00 (00000000), C=0, Z=1, N=0
+    cpu.PC = 0x0600
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x80'u8) # Set C, N initially
+    cpu.cycles = 0
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    mem.mem[cpu.PC] = 0x0A  # ASL Accumulator
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0A handler not implemented")
+
+    check:
+      cpu.A == 0x00        # Accumulator remains 0
+      not cpu.C            # Carry flag clear
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == initialPC + 1
+      cpu.cycles == initialCycles + 2
+
+  test "ASL Accumulator - Sets Negative Flag":
+    # Setup ASL (0A)
+    # Initial A = $40 (01000000)
+    # Expected A = $80 (10000000), C=0, Z=0, N=1
+    cpu.PC = 0x0600
+    cpu.A = 0x40
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C, Z initially
+    cpu.cycles = 0
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    mem.mem[cpu.PC] = 0x0A  # ASL Accumulator
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0A handler not implemented")
+
+    check:
+      cpu.A == 0x80        # Accumulator shifted
+      not cpu.C            # Carry flag clear
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == initialPC + 1
+      cpu.cycles == initialCycles + 2
+
+  test "ASL Accumulator - Sets Carry Flag":
+    # Setup ASL (0A)
+    # Initial A = $80 (10000000)
+    # Expected A = $00 (00000000), C=1, Z=1, N=0
+    cpu.PC = 0x0600
+    cpu.A = 0x80
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially
+    cpu.cycles = 0
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    mem.mem[cpu.PC] = 0x0A  # ASL Accumulator
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0A handler not implemented")
+
+    check:
+      cpu.A == 0x00        # Accumulator shifted to 0
+      cpu.C == true        # Carry flag set (original bit 7 was 1)
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == initialPC + 1
+      cpu.cycles == initialCycles + 2
+
+  test "ASL Accumulator - Sets Carry and Negative Flags":
+    # Setup ASL (0A)
+    # Initial A = $C0 (11000000)
+    # Expected A = $80 (10000000), C=1, Z=0, N=1
+    cpu.PC = 0x0600
+    cpu.A = 0xC0
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially
+    cpu.cycles = 0
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    mem.mem[cpu.PC] = 0x0A  # ASL Accumulator
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0A handler not implemented")
+
+    check:
+      cpu.A == 0x80        # Accumulator shifted
+      cpu.C == true        # Carry flag set (original bit 7 was 1)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == initialPC + 1
+      cpu.cycles == initialCycles + 2
+

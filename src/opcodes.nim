@@ -198,6 +198,30 @@ proc opORA_imm*(cpu: var CPU) =
   cpu.cycles += 2 # ORA Immediate takes 2 cycles
 
 
+
+proc opASL_acc*(cpu: var CPU) =
+  ## ASL Accumulator - Opcode 0x0A
+  ## Action: A = A << 1
+  cpu.printOpCode("ASL A")
+
+  let originalValue = cpu.A
+
+  # 1. Perform ASL on Accumulator
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Update Accumulator
+  cpu.A = shiftedValue
+
+  # 3. Update flags based on the *shifted* value in A
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  # 4. Update PC and Cycles
+  cpu.PC += 1 # Implied addressing, 1 byte instruction
+  cpu.cycles += 2 # ASL Accumulator takes 2 cycles
+
+
  
 
 proc opSLO_zp*(cpu: var CPU) =
@@ -359,6 +383,8 @@ proc setupOpcodeTable*() =
   opcodeTable[0x05] = OpcodeInfo(handler: opORA_zp, mode: zeroPage, cycles: 3, mnemonic: "ORA")
   opcodeTable[0x08] = OpcodeInfo(handler: opPHP, mode: immediate, cycles: 3, mnemonic: "PHP") # Technically implied, using immediate for consistency
   opcodeTable[0x09] = OpcodeInfo(handler: opORA_imm, mode: immediate, cycles: 2, mnemonic: "ORA")
+
+  opcodeTable[0x0A] = OpcodeInfo(handler: opASL_acc, mode: immediate, cycles: 2, mnemonic: "ASL") # Accumulator mode
 
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
