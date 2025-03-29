@@ -477,6 +477,27 @@ proc opNOP_zp*(cpu: var CPU) =
   cpu.cycles += 3 # NOP zp takes 3 cycles
 
 
+
+
+proc opBPL*(cpu: var CPU) =
+  ## BPL Relative - Opcode 0x10
+  ## Branch if Negative flag is clear (N=0)
+  let result = resolveAddressingMode(cpu, relative)
+  # Note: resolveAddressingMode for relative already calculates the target address
+  # and determines if a page cross occurs in result.extraCycles.
+  cpu.printOpCode(result.address, &"BPL ${result.address.toHex:02}")
+
+  if not cpu.N:
+    # Branch taken
+    # Cycle cost: +1 if branch taken, +1 more if page crossed
+    cpu.cycles += 3 + uint16(result.extraCycles)
+    cpu.PC = result.address # PC is already calculated by resolveAddressingMode
+  else:
+    # Branch not taken
+    cpu.PC += uint16(result.operandBytes + 1) # Advance PC past opcode and operand
+    cpu.cycles += 2
+
+  opcodeTable[0x10] = OpcodeInfo(handler: opBPL, mode: relative, cycles: 2, mnemonic: "BPL") # Cycles=2 base, +1 if branch taken, +1 more if page crossed
 proc setupOpcodeTable*() =
   for i in 0..255:
     opcodeTable[i].handler = nil
