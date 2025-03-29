@@ -438,3 +438,157 @@ suite "ORA Opcode Unit Tests":
       not cpu.N            # Negative flag clear (bit 7 is 0)
       cpu.PC == 0x0932     # PC advanced by 2
       cpu.cycles == 3      # Cycles correct
+
+  # --- Tests for Opcode 0x11: ORA (Indirect),Y ---
+
+  test "ORA (Indirect),Y - Basic Operation, No Page Cross":
+    # Setup: ORA ($40),Y where Y=0x04
+    # Zero page address operand = $40
+    # Base address stored at $0040/$0041 is $1230
+    # Effective address = $1230 + Y = $1230 + $04 = $1234 (no page cross)
+    # Value at $1234 is $55
+    # Initial A = $AA
+    # Expected A = $AA | $55 = $FF
+    cpu.PC = 0x0A00
+    cpu.Y = 0x04
+    cpu.A = 0xAA
+    cpu.setFlags(0x20'u8) # Clear flags initially
+    cpu.cycles = 0
+
+    mem.mem[0x0A00] = 0x11  # ORA (Indirect),Y
+    mem.mem[0x0A01] = 0x40  # Zero page address operand
+
+    # Setup the indirect base address lookup in zero page
+    mem.mem[0x0040] = 0x30  # Low byte of base address ($1230)
+    mem.mem[0x0041] = 0x12  # High byte of base address ($1230)
+
+    # Setup the value at the effective address
+    mem.mem[0x1234] = 0x55
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail() # Expect failure
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (AA | 55 = FF)
+      not cpu.Z            # Zero flag clear (FF != 0)
+      cpu.N == true        # Negative flag set (bit 7 of FF is 1)
+      cpu.PC == 0x0A02     # PC advanced by 2
+      cpu.cycles == 5      # ORA (Indirect),Y takes 5 cycles (no page cross)
+
+  test "ORA (Indirect),Y - Page Cross":
+    # Setup: ORA ($50),Y where Y=0x10
+    # Zero page address operand = $50
+    # Base address stored at $0050/$0051 is $12F8
+    # Effective address = $12F8 + Y = $12F8 + $10 = $1308 (page cross)
+    # Value at $1308 is $0F
+    # Initial A = $F0
+    # Expected A = $F0 | $0F = $FF
+    cpu.PC = 0x0B00
+    cpu.Y = 0x10
+    cpu.A = 0xF0
+    cpu.setFlags(0x20'u8) # Clear flags initially
+    cpu.cycles = 0
+
+    mem.mem[0x0B00] = 0x11  # ORA (Indirect),Y
+    mem.mem[0x0B01] = 0x50  # Zero page address operand
+
+    # Setup the indirect base address lookup in zero page
+    mem.mem[0x0050] = 0xF8  # Low byte of base address ($12F8)
+    mem.mem[0x0051] = 0x12  # High byte of base address ($12F8)
+
+    # Setup the value at the effective address
+    mem.mem[0x1308] = 0x0F
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail() # Expect failure
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (F0 | 0F = FF)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x0B02     # PC advanced by 2
+      cpu.cycles == 6      # ORA (Indirect),Y takes 5 + 1 = 6 cycles (page cross)
+
+  test "ORA (Indirect),Y - Sets Zero Flag":
+    # Setup: ORA ($60),Y where Y=0x05
+    # Zero page address operand = $60
+    # Base address stored at $0060/$0061 is $C010
+    # Effective address = $C010 + Y = $C010 + $05 = $C015
+    # Value at $C015 is $00
+    # Initial A = $00
+    # Expected A = $00 | $00 = $00
+    cpu.PC = 0x0C00
+    cpu.Y = 0x05
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially
+    cpu.cycles = 0
+
+    mem.mem[0x0C00] = 0x11  # ORA (Indirect),Y
+    mem.mem[0x0C01] = 0x60  # Zero page address operand
+
+    # Setup the indirect base address lookup in zero page
+    mem.mem[0x0060] = 0x10  # Low byte of base address ($C010)
+    mem.mem[0x0061] = 0xC0  # High byte of base address ($C010)
+
+    # Setup the value at the effective address
+    mem.mem[0xC015] = 0x00
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail() # Expect failure
+
+    check:
+      cpu.A == 0x00        # Accumulator is zero
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == 0x0C02     # PC advanced by 2
+      cpu.cycles == 5      # No page cross
+
+  test "ORA (Indirect),Y - Sets Negative Flag":
+    # Setup: ORA ($70),Y where Y=0x0A
+    # Zero page address operand = $70
+    # Base address stored at $0070/$0071 is $D020
+    # Effective address = $D020 + Y = $D020 + $0A = $D02A
+    # Value at $D02A is $80
+    # Initial A = $01
+    # Expected A = $01 | $80 = $81
+    cpu.PC = 0x0D00
+    cpu.Y = 0x0A
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x0D00] = 0x11  # ORA (Indirect),Y
+    mem.mem[0x0D01] = 0x70  # Zero page address operand
+
+    # Setup the indirect base address lookup in zero page
+    mem.mem[0x0070] = 0x20  # Low byte of base address ($D020)
+    mem.mem[0x0071] = 0xD0  # High byte of base address ($D020)
+
+    # Setup the value at the effective address
+    mem.mem[0xD02A] = 0x80
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail() # Expect failure
+
+    check:
+      cpu.A == 0x81        # Accumulator updated (01 | 80 = 81)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x0D02     # PC advanced by 2
+      cpu.cycles == 5      # No page cross

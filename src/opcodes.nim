@@ -497,6 +497,23 @@ proc opBPL*(cpu: var CPU) =
     cpu.PC += uint16(result.operandBytes + 1) # Advance PC past opcode and operand
     cpu.cycles += 2
 
+
+
+proc opORA_indirectY*(cpu: var CPU) =
+  ## ORA (Indirect),Y - Opcode 0x11
+  ## Action: A = A | M
+  let result = resolveAddressingMode(cpu, indirectY)
+  let value = cpu.memory[result.address]
+  cpu.printOpCode(result.address, &"ORA (${(cpu.memory[cpu.PC + 1]).toHex:02}),Y @ {result.address.toHex:04} = {value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 5 + uint16(result.extraCycles) # ORA (Indirect),Y takes 5 cycles (+1 if page crossed)
+
+
   opcodeTable[0x10] = OpcodeInfo(handler: opBPL, mode: relative, cycles: 2, mnemonic: "BPL") # Cycles=2 base, +1 if branch taken, +1 more if page crossed
 proc setupOpcodeTable*() =
   for i in 0..255:
@@ -526,7 +543,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x0E] = OpcodeInfo(handler: opASL_abs, mode: absolute, cycles: 6, mnemonic: "ASL")
   opcodeTable[0x0F] = OpcodeInfo(handler: opSLO_abs, mode: absolute, cycles: 6, mnemonic: "SLO") # Unofficial
-  opcodeTable[0x0F] = OpcodeInfo(handler: opSLO_abs, mode: absolute, cycles: 6, mnemonic: "SLO") # Unofficial
+  opcodeTable[0x11] = OpcodeInfo(handler: opORA_indirectY, mode: indirectY, cycles: 5, mnemonic: "ORA") # Cycles=5 base, +1 if page crossed
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
   opcodeTable[0x85] = OpcodeInfo(handler: opSTA, mode: zeroPage, cycles: 3, mnemonic: "STA")
   opcodeTable[0x86] = OpcodeInfo(handler: opSTX, mode: zeroPage, cycles: 3, mnemonic: "STX")
@@ -544,3 +561,4 @@ proc setupOpcodeTable*() =
   opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ") 
   opcodeTable[0x06] = OpcodeInfo(handler: opASL_zp, mode: zeroPage, cycles: 5, mnemonic: "ASL")
   opcodeTable[0x07] = OpcodeInfo(handler: opSLO_zp, mode: zeroPage, cycles: 5, mnemonic: "SLO") # Unofficial
+
