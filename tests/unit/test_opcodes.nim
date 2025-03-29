@@ -1606,3 +1606,182 @@ suite "Opcode Unit Tests":
       cpu.PC == 0x0903          # PC advanced by 3
       cpu.cycles == 6           # ASL Absolute takes 6 cycles
 
+
+  # --- Tests for Opcode 0x0F: SLO Absolute ---
+
+  test "SLO Absolute - Basic Operation, No Carry, Positive Result":
+    # Setup: SLO $C050 (0F 50 C0)
+    # Initial value M at $C050 is $41 (01000001)
+    # Initial A = $12 (00010010)
+    #
+    # Action:
+    # 1. ASL on M: $41 << 1 = $82 (10000010). Carry = 0 (original bit 7 was 0).
+    # 2. Write $82 back to $C050.
+    # 3. ORA: A = A | shifted M = $12 | $82 = $92 (10010010)
+    #
+    # Expected State:
+    # A = $92
+    # Memory[$C050] = $82
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 3
+    # Cycles = Cycles + 6
+    cpu.PC = 0x0600
+    cpu.A = 0x12
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x0600] = 0x0F  # SLO Absolute
+    mem.mem[0x0601] = 0x50  # Low byte of address
+    mem.mem[0x0602] = 0xC0  # High byte of address
+
+    # Setup the initial value at the effective address
+    mem.mem[0xC050] = 0x41
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0F handler not implemented") # Fail explicitly if not implemented
+
+    check:
+      cpu.A == 0x92             # Accumulator updated (12 | 82 = 92)
+      mem.mem[0xC050] == 0x82   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (92 != 0)
+      cpu.N == true             # Negative flag set (bit 7 of 92 is 1)
+      not cpu.C                 # Carry flag clear (original bit 7 of 41 was 0)
+      cpu.PC == 0x0603          # PC advanced by 3
+      cpu.cycles == 6           # SLO Absolute takes 6 cycles
+
+  test "SLO Absolute - Sets Carry Flag":
+    # Setup: SLO $D100 (0F 00 D1)
+    # Initial value M at $D100 is $81 (10000001)
+    # Initial A = $0F (00001111)
+    #
+    # Action:
+    # 1. ASL on M: $81 << 1 = $02 (00000010). Carry = 1 (original bit 7 was 1).
+    # 2. Write $02 back to $D100.
+    # 3. ORA: A = A | shifted M = $0F | $02 = $0F (00001111)
+    #
+    # Expected State:
+    # A = $0F
+    # Memory[$D100] = $02
+    # Flags: N=0, Z=0, C=1
+    # PC = PC + 3
+    # Cycles = Cycles + 6
+    cpu.PC = 0x0700
+    cpu.A = 0x0F
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+
+    mem.mem[0x0700] = 0x0F  # SLO Absolute
+    mem.mem[0x0701] = 0x00  # Low byte of address
+    mem.mem[0x0702] = 0xD1  # High byte of address
+
+    # Setup the initial value at the effective address
+    mem.mem[0xD100] = 0x81
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0F handler not implemented")
+
+    check:
+      cpu.A == 0x0F             # Accumulator updated (0F | 02 = 0F)
+      mem.mem[0xD100] == 0x02   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (0F != 0)
+      not cpu.N                 # Negative flag clear (bit 7 of 0F is 0)
+      cpu.C == true             # Carry flag set (original bit 7 of 81 was 1)
+      cpu.PC == 0x0703          # PC advanced by 3
+      cpu.cycles == 6           # SLO Absolute takes 6 cycles
+
+  test "SLO Absolute - Sets Zero Flag":
+    # Setup: SLO $E000 (0F 00 E0)
+    # Initial value M at $E000 is $80 (10000000)
+    # Initial A = $00 (00000000)
+    #
+    # Action:
+    # 1. ASL on M: $80 << 1 = $00 (00000000). Carry = 1 (original bit 7 was 1).
+    # 2. Write $00 back to $E000.
+    # 3. ORA: A = A | shifted M = $00 | $00 = $00 (00000000)
+    #
+    # Expected State:
+    # A = $00
+    # Memory[$E000] = $00
+    # Flags: N=0, Z=1, C=1
+    # PC = PC + 3
+    # Cycles = Cycles + 6
+    cpu.PC = 0x0800
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially, clear C
+    cpu.cycles = 0
+
+    mem.mem[0x0800] = 0x0F  # SLO Absolute
+    mem.mem[0x0801] = 0x00  # Low byte of address
+    mem.mem[0x0802] = 0xE0  # High byte of address
+
+    # Setup the initial value at the effective address
+    mem.mem[0xE000] = 0x80
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0F handler not implemented")
+
+    check:
+      cpu.A == 0x00             # Accumulator updated (00 | 00 = 00)
+      mem.mem[0xE000] == 0x00   # Memory updated with shifted value
+      cpu.Z == true             # Zero flag set (00 == 0)
+      not cpu.N                 # Negative flag clear (bit 7 of 00 is 0)
+      cpu.C == true             # Carry flag set (original bit 7 of 80 was 1)
+      cpu.PC == 0x0803          # PC advanced by 3
+      cpu.cycles == 6           # SLO Absolute takes 6 cycles
+
+  test "SLO Absolute - Sets Negative Flag":
+    # Setup: SLO $F010 (0F 10 F0)
+    # Initial value M at $F010 is $40 (01000000)
+    # Initial A = $01 (00000001)
+    #
+    # Action:
+    # 1. ASL on M: $40 << 1 = $80 (10000000). Carry = 0 (original bit 7 was 0).
+    # 2. Write $80 back to $F010.
+    # 3. ORA: A = A | shifted M = $01 | $80 = $81 (10000001)
+    #
+    # Expected State:
+    # A = $81
+    # Memory[$F010] = $80
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 3
+    # Cycles = Cycles + 6
+    cpu.PC = 0x0900
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C and Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x0900] = 0x0F  # SLO Absolute
+    mem.mem[0x0901] = 0x10  # Low byte of address
+    mem.mem[0x0902] = 0xF0  # High byte of address
+
+    # Setup the initial value at the effective address
+    mem.mem[0xF010] = 0x40
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail("Opcode 0x0F handler not implemented")
+
+    check:
+      cpu.A == 0x81             # Accumulator updated (01 | 80 = 81)
+      mem.mem[0xF010] == 0x80   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (81 != 0)
+      cpu.N == true             # Negative flag set (bit 7 of 81 is 1)
+      not cpu.C                 # Carry flag clear (original bit 7 of 40 was 0)
+      cpu.PC == 0x0903          # PC advanced by 3
+      cpu.cycles == 6           # SLO Absolute takes 6 cycles
+
