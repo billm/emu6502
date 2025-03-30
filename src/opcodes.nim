@@ -1,6 +1,6 @@
 import types
 import addressing
-import utils
+import utils # For read16
 import strformat
 import strutils
 import stack
@@ -8,7 +8,7 @@ import memory
 import flags
 
 export types.CPU
-export types.OperatorMode
+export types.OperatorMode # AddressResult is implicitly available via 'import addressing'
 
 type
   OpcodeHandler* = proc(cpu: var CPU)
@@ -19,6 +19,43 @@ type
     mnemonic*: string
 
 var opcodeTable*: array[256, OpcodeInfo]
+
+# Helper Procedures
+
+proc updateZNFlags*(cpu: var CPU, value: uint8) =
+  ## Updates the Zero and Negative flags based on the provided value.
+  cpu.setZ(value)
+  cpu.setN(value)
+
+proc performORA*(cpu: var CPU, value: uint8) =
+  ## Performs the ORA operation (A = A | value) and updates Z/N flags.
+  cpu.A = cpu.A or value
+  cpu.updateZNFlags(cpu.A)
+
+proc performASL*(cpu: var CPU, value: uint8): uint8 =
+  ## Performs the ASL operation (value << 1), updates Carry flag, and returns the result.
+  cpu.C = (value and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  result = value shl 1
+
+proc performASLOnMemory*(cpu: var CPU, address: uint16) =
+  ## Performs ASL on a memory location, updates memory, and sets Z/N flags.
+  let originalValue = cpu.memory[address]
+  let shiftedValue = cpu.performASL(originalValue)
+  cpu.memory[address] = shiftedValue
+  cpu.updateZNFlags(shiftedValue)
+
+proc performBranch*(cpu: var CPU, condition: bool, result: AddressingResult) =
+  ## Handles the logic for conditional branches (PC and cycle updates).
+  if condition:
+    # Branch taken: base cycles + 1 + page cross penalty
+    cpu.cycles += 1 + uint16(result.extraCycles)
+    cpu.PC = result.address
+  else:
+    # Branch not taken: base cycles only
+    # PC increment handled outside this proc by caller
+    discard
+
+# Opcode Implementations
 
 proc opBRK(cpu: var CPU) =
   cpu.printOpCode("BRK")
@@ -33,7 +70,7 @@ proc opBRK(cpu: var CPU) =
   cpu.push(statusToPush)  # Push processor status (with B flag set)
   cpu.B = false  # Clear B flag in actual CPU status
   cpu.I = true  # Set interrupt disable flag
-  cpu.PC = (cpu.memory[0xFFFE].uint16 or (cpu.memory[0xFFFF].uint16 shl 8))  # Load IRQ vector
+  cpu.PC = read16(cpu.memory, 0xFFFE) # Load IRQ vector address
   cpu.cycles += 7  # BRK takes 7 cycles
 
 proc opJSR(cpu: var CPU) =
@@ -75,8 +112,7 @@ proc opLDY(cpu: var CPU) =
   cpu.Y = result.value
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 2  # LDY immediate takes 2 cycles
-  cpu.setZ(cpu.Y)
-  cpu.setN(cpu.Y)
+  cpu.updateZNFlags(cpu.Y)
 
 proc opLDA_indirectX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, indirectX)
@@ -84,8 +120,7 @@ proc opLDA_indirectX(cpu: var CPU) =
   cpu.A = cpu.memory[result.address]
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 6 + uint16(result.extraCycles)  # LDA (zp,X) takes 6 cycles
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
 
 proc opORA_indirectX*(cpu: var CPU) =
@@ -94,9 +129,7 @@ proc opORA_indirectX*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   cpu.printOpCode(result.address, &"ORA (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {result.address.toHex:04} = {value.toHex:02}")
 
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 6 + uint16(result.extraCycles) # ORA (Indirect,X) takes 6 cycles
@@ -107,20 +140,18 @@ proc opSLO_indirectX*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, indirectX)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
+  # performASLOnMemory handles shift, write back, and Z/N flags based on shifted value
+  # We need the shifted value for the ORA step. Let's adjust performASLOnMemory or do it manually here.
+  # Manual approach for now to keep helpers simple:
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
@@ -134,9 +165,7 @@ proc opORA_zp*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   cpu.printOpCode(result.address, &"ORA ${result.address.toHex:02} = {value.toHex:02}")
 
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 3 # ORA ZeroPage takes 3 cycles
@@ -147,19 +176,9 @@ proc opASL_zp*(cpu: var CPU) =
   ## Action: M = M << 1
   let result = resolveAddressingMode(cpu, zeroPage)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"ASL ${effectiveAddr.toHex:02} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"ASL ${effectiveAddr.toHex:02} = {cpu.memory[effectiveAddr].toHex:02}")
 
-  # 1. Perform ASL
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
-  cpu.memory[effectiveAddr] = shiftedValue
-
-  # 3. Update flags based on the *shifted* value
-  cpu.setZ(shiftedValue)
-  cpu.setN(shiftedValue)
+  cpu.performASLOnMemory(effectiveAddr) # Handles shift, write back, C, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
@@ -190,9 +209,7 @@ proc opORA_imm*(cpu: var CPU) =
   let value = result.value
   cpu.printOpCode(value, &"ORA #${value.toHex:02}")
 
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 2 # ORA Immediate takes 2 cycles
@@ -204,18 +221,12 @@ proc opASL_acc*(cpu: var CPU) =
   ## Action: A = A << 1
   cpu.printOpCode("ASL A")
 
-  let originalValue = cpu.A
-
   # 1. Perform ASL on Accumulator
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Update Accumulator
-  cpu.A = shiftedValue
+  let shiftedValue = cpu.performASL(cpu.A) # Updates C flag
+  cpu.A = shiftedValue # Update Accumulator
 
   # 3. Update flags based on the *shifted* value in A
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
   # 4. Update PC and Cycles
   cpu.PC += 1 # Implied addressing, 1 byte instruction
@@ -235,8 +246,7 @@ proc opANC_imm*(cpu: var CPU) =
   cpu.A = cpu.A and value
 
   # 2. Update N and Z flags based on the result in A
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
   # 3. Set Carry flag equal to the Negative flag
   cpu.C = cpu.N
@@ -255,9 +265,7 @@ proc opORA_abs*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   cpu.printOpCode(result.address, &"ORA ${result.address.toHex:04} = {value.toHex:02}")
 
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
   cpu.cycles += 4 # ORA Absolute takes 4 cycles
@@ -305,20 +313,15 @@ proc opSLO_zp*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, zeroPage)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"SLO ${effectiveAddr.toHex:02} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO ${effectiveAddr.toHex:02} = {cpu.memory[effectiveAddr].toHex:02}")
 
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator using the *shifted* value
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A) # Z flag based on final A
-  cpu.setN(cpu.A) # N flag based on final A
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
@@ -332,8 +335,7 @@ proc opLDX(cpu: var CPU) =
   cpu.X = result.value
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 2  # LDX immediate takes 2 cycles
-  cpu.setZ(cpu.X)
-  cpu.setN(cpu.X)
+  cpu.updateZNFlags(cpu.X)
 
 proc opLDY_zp(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, zeroPage)
@@ -341,8 +343,7 @@ proc opLDY_zp(cpu: var CPU) =
   cpu.Y = cpu.memory[result.address]
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 3  # LDY zp takes 3 cycles
-  cpu.setZ(cpu.Y)
-  cpu.setN(cpu.Y)
+  cpu.updateZNFlags(cpu.Y)
 
 proc opLDA_zp(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, zeroPage)
@@ -350,8 +351,7 @@ proc opLDA_zp(cpu: var CPU) =
   cpu.A = cpu.memory[result.address]
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 3  # LDA zp takes 3 cycles
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
 proc opLDX_zp(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, zeroPage)
@@ -359,8 +359,7 @@ proc opLDX_zp(cpu: var CPU) =
   cpu.X = cpu.memory[result.address]
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 3  # LDX zp takes 3 cycles
-  cpu.setZ(cpu.X)
-  cpu.setN(cpu.X)
+  cpu.updateZNFlags(cpu.X)
 
 proc opLDA_imm(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, immediate)
@@ -368,8 +367,7 @@ proc opLDA_imm(cpu: var CPU) =
   cpu.A = result.value
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 2  # LDA immediate takes 2 cycles
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
 proc opLDA_indirectY(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, indirectY)
@@ -377,8 +375,7 @@ proc opLDA_indirectY(cpu: var CPU) =
   cpu.A = cpu.memory[result.address]
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 5 + uint16(result.extraCycles)  # LDA (zp),Y takes 5 cycles + 1 if page crossed
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
 proc opLDA_absX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, absoluteX)
@@ -386,49 +383,37 @@ proc opLDA_absX(cpu: var CPU) =
   cpu.A = cpu.memory[result.address]
   cpu.PC += uint16(result.operandBytes + 1)
   cpu.cycles += 4 + uint16(result.extraCycles)  # LDA abs,X takes 4 cycles + 1 if page crossed
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.updateZNFlags(cpu.A)
 
 proc opBNE(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, relative)
   cpu.printOpCode(result.address, &"BNE ${result.address.toHex:02}")
-  if not cpu.Z:
-    cpu.PC = result.address
-    cpu.cycles += 2 + uint16(result.extraCycles)  # BNE takes 2 cycles + 1 if page crossed
-  else:
+  let baseCycles = 2
+  cpu.cycles += uint16(baseCycles)
+  cpu.performBranch(not cpu.Z, result)
+  # PC increment only if branch not taken
+  if cpu.Z:
     cpu.PC += uint16(result.operandBytes + 1)
-    cpu.cycles += 2  # BNE not taken takes 2 cycles
 
 proc opINX(cpu: var CPU) =
   cpu.printOpCode("INX")
   cpu.X += 1
   cpu.PC += 1
   cpu.cycles += 2  # INX takes 2 cycles
-  cpu.setZ(cpu.X)
-  cpu.setN(cpu.X)
+  cpu.updateZNFlags(cpu.X)
 
 proc opBEQ(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, relative)
   cpu.printOpCode(result.address, &"BEQ ${result.address.toHex:02}")
-  if cpu.Z:
-    cpu.PC = result.address
-    cpu.cycles += 2 + uint16(result.extraCycles)  # BEQ takes 2 cycles + 1 if page crossed
-  else:
+  let baseCycles = 2
+  cpu.cycles += uint16(baseCycles)
+  cpu.performBranch(cpu.Z, result)
+  # PC increment only if branch not taken
+  if not cpu.Z:
     cpu.PC += uint16(result.operandBytes + 1)
-    cpu.cycles += 2  # BEQ not taken takes 2 cycles
 
 proc opKIL(cpu: var CPU) =
   ## KIL Implied - Opcode 0x02 (unofficial)
-  ## Halts the processor.
-  cpu.printOpCode("KIL")
-  cpu.halted = true
-  cpu.PC += 1 # KIL is a 1-byte instruction
-  cpu.cycles += 2 # Nominal cycle count for KIL
-
-
-
-proc opKIL_12(cpu: var CPU) =
-  ## KIL Implied - Opcode 0x12 (unofficial)
   ## Halts the processor.
   cpu.printOpCode("KIL")
   cpu.halted = true
@@ -441,19 +426,9 @@ proc opASL_abs*(cpu: var CPU) =
   ## Action: M = M << 1
   let result = resolveAddressingMode(cpu, absolute)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"ASL ${effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"ASL ${effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
-  # 1. Perform ASL
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
-  cpu.memory[effectiveAddr] = shiftedValue
-
-  # 3. Update flags based on the *shifted* value
-  cpu.setZ(shiftedValue)
-  cpu.setN(shiftedValue)
+  cpu.performASLOnMemory(effectiveAddr) # Handles shift, write back, C, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
@@ -467,20 +442,15 @@ proc opSLO_abs*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, absolute)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"SLO ${effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO ${effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator using the *shifted* value
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A) # Z flag based on final A
-  cpu.setN(cpu.A) # N flag based on final A
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
@@ -494,20 +464,15 @@ proc opSLO_indirectY*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, indirectY) # Fetch address first
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02}),Y @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02}),Y @ {effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
   
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-  
-  # 2. Write shifted value back to memory
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
   
   # 3. ORA with Accumulator using the *shifted* value
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A) # Z flag based on final A
-  cpu.setN(cpu.A) # N flag based on final A
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
   
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
@@ -521,20 +486,15 @@ proc opSLO_zpX*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, zeroPageX) # Fetch address first
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {effectiveAddr.toHex:02} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {effectiveAddr.toHex:02} = {cpu.memory[effectiveAddr].toHex:02}")
 
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator using the *shifted* value
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A) # Z flag based on final A
-  cpu.setN(cpu.A) # N flag based on final A
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
@@ -548,21 +508,16 @@ proc opSLO_absY*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, absoluteY) # Fetch address first
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
   let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8) # For printing
-  cpu.printOpCode(effectiveAddr, &"SLO ${baseAddr.toHex:04},Y @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO ${baseAddr.toHex:04},Y @ {effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator using the *shifted* value
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A) # Z flag based on final A
-  cpu.setN(cpu.A) # N flag based on final A
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
@@ -577,21 +532,16 @@ proc opSLO_absX*(cpu: var CPU) =
   ## Action: M = M << 1; A = A | M
   let result = resolveAddressingMode(cpu, absoluteX) # Use absoluteX
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
   let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8) # For printing
-  cpu.printOpCode(effectiveAddr, &"SLO ${baseAddr.toHex:04},X @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"SLO ${baseAddr.toHex:04},X @ {effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
   # 1. ASL on M
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
+  let originalValue = cpu.memory[effectiveAddr]
+  let shiftedValue = cpu.performASL(originalValue) # Updates C flag
   cpu.memory[effectiveAddr] = shiftedValue
 
   # 3. ORA with Accumulator using the *shifted* value
-  cpu.A = cpu.A or shiftedValue
-  cpu.setZ(cpu.A) # Z flag based on final A
-  cpu.setN(cpu.A) # N flag based on final A
+  cpu.performORA(shiftedValue) # Updates A, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
@@ -605,19 +555,9 @@ proc opASL_zpX*(cpu: var CPU) =
   ## Action: M = M << 1
   let result = resolveAddressingMode(cpu, zeroPageX)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
-  cpu.printOpCode(effectiveAddr, &"ASL ${(cpu.memory[cpu.PC + 1]).toHex:02},X @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"ASL ${(cpu.memory[cpu.PC + 1]).toHex:02},X @ {effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
-  # 1. Perform ASL
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
-  cpu.memory[effectiveAddr] = shiftedValue
-
-  # 3. Update flags based on the *shifted* value
-  cpu.setZ(shiftedValue)
-  cpu.setN(shiftedValue)
+  cpu.performASLOnMemory(effectiveAddr) # Handles shift, write back, C, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
@@ -646,9 +586,7 @@ proc opORA_zpX*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   cpu.printOpCode(result.address, &"ORA ${(cpu.memory[cpu.PC + 1]).toHex:02},X @ {result.address.toHex:02} = {value.toHex:02}")
 
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 4 # ORA ZeroPage,X takes 4 cycles
@@ -677,17 +615,14 @@ proc opBPL*(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, relative)
   # Note: resolveAddressingMode for relative already calculates the target address
   # and determines if a page cross occurs in result.extraCycles.
-  cpu.printOpCode(result.address, &"BPL ${result.address.toHex:02}")
+  cpu.printOpCode(result.address, &"BPL ${result.address.toHex:04}") # Use 04 for address consistency
 
-  if not cpu.N:
-    # Branch taken
-    # Cycle cost: +1 if branch taken, +1 more if page crossed
-    cpu.cycles += 3 + uint16(result.extraCycles)
-    cpu.PC = result.address # PC is already calculated by resolveAddressingMode
-  else:
-    # Branch not taken
-    cpu.PC += uint16(result.operandBytes + 1) # Advance PC past opcode and operand
-    cpu.cycles += 2
+  let baseCycles = 2
+  cpu.cycles += uint16(baseCycles)
+  cpu.performBranch(not cpu.N, result)
+  # PC increment only if branch not taken
+  if cpu.N:
+    cpu.PC += uint16(result.operandBytes + 1)
 
 
 
@@ -698,9 +633,7 @@ proc opORA_indirectY*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   cpu.printOpCode(result.address, &"ORA (${(cpu.memory[cpu.PC + 1]).toHex:02}),Y @ {result.address.toHex:04} = {value.toHex:02}")
 
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 5 + uint16(result.extraCycles) # ORA (Indirect),Y takes 5 cycles (+1 if page crossed)
@@ -714,10 +647,8 @@ proc opORA_absY*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8)
   cpu.printOpCode(result.address, &"ORA ${baseAddr.toHex:04},Y @ {result.address.toHex:04} = {value.toHex:02}")
-
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
   cpu.cycles += 4 + uint16(result.extraCycles) # ORA Absolute,Y takes 4 cycles (+1 if page crossed)
@@ -732,10 +663,8 @@ proc opORA_absX*(cpu: var CPU) =
   let value = cpu.memory[result.address]
   let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8)
   cpu.printOpCode(result.address, &"ORA ${baseAddr.toHex:04},X @ {result.address.toHex:04} = {value.toHex:02}")
-
-  cpu.A = cpu.A or value
-  cpu.setZ(cpu.A)
-  cpu.setN(cpu.A)
+  
+  cpu.performORA(value)
 
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
   cpu.cycles += 4 + uint16(result.extraCycles) # ORA Absolute,X takes 4 cycles (+1 if page crossed)
@@ -747,20 +676,10 @@ proc opASL_absX*(cpu: var CPU) =
   ## Action: M = M << 1
   let result = resolveAddressingMode(cpu, absoluteX)
   let effectiveAddr = result.address
-  let originalValue = cpu.memory[effectiveAddr]
   let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8)
-  cpu.printOpCode(effectiveAddr, &"ASL ${baseAddr.toHex:04},X @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+  cpu.printOpCode(effectiveAddr, &"ASL ${baseAddr.toHex:04},X @ {effectiveAddr.toHex:04} = {cpu.memory[effectiveAddr].toHex:02}")
 
-  # 1. Perform ASL
-  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  let shiftedValue = originalValue shl 1
-
-  # 2. Write shifted value back to memory
-  cpu.memory[effectiveAddr] = shiftedValue
-
-  # 3. Update flags based on the *shifted* value
-  cpu.setZ(shiftedValue)
-  cpu.setN(shiftedValue)
+  cpu.performASLOnMemory(effectiveAddr) # Handles shift, write back, C, Z, N flags
 
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
@@ -820,7 +739,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x0F] = OpcodeInfo(handler: opSLO_abs, mode: absolute, cycles: 6, mnemonic: "SLO") # Unofficial
   opcodeTable[0x10] = OpcodeInfo(handler: opBPL, mode: relative, cycles: 2, mnemonic: "BPL") # Cycles=2 base, +1 if branch taken, +1 more if page crossed
   opcodeTable[0x11] = OpcodeInfo(handler: opORA_indirectY, mode: indirectY, cycles: 5, mnemonic: "ORA") # Cycles=5 base, +1 if page crossed
-  opcodeTable[0x12] = OpcodeInfo(handler: opKIL_12, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
+  opcodeTable[0x12] = OpcodeInfo(handler: opKIL, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial (Use opKIL)
   opcodeTable[0x13] = OpcodeInfo(handler: opSLO_indirectY, mode: indirectY, cycles: 8, mnemonic: "SLO") # Unofficial
   opcodeTable[0x14] = OpcodeInfo(handler: opNOP_zpX, mode: zeroPageX, cycles: 4, mnemonic: "NOP") # Unofficial
   opcodeTable[0x15] = OpcodeInfo(handler: opORA_zpX, mode: zeroPageX, cycles: 4, mnemonic: "ORA")
@@ -839,6 +758,9 @@ proc setupOpcodeTable*() =
   opcodeTable[0x1A] = OpcodeInfo(handler: opNOP_implied_1A, mode: immediate, cycles: 2, mnemonic: "NOP") # Unofficial, Implied mode
   opcodeTable[0x1B] = OpcodeInfo(handler: opSLO_absY, mode: absoluteY, cycles: 7, mnemonic: "SLO") # Unofficial
   opcodeTable[0x1C] = OpcodeInfo(handler: opNOP_absX, mode: absoluteX, cycles: 4, mnemonic: "NOP") # Unofficial
+  opcodeTable[0x1D] = OpcodeInfo(handler: opORA_absX, mode: absoluteX, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
+  opcodeTable[0x1E] = OpcodeInfo(handler: opASL_absX, mode: absoluteX, cycles: 7, mnemonic: "ASL")
+  opcodeTable[0x1F] = OpcodeInfo(handler: opSLO_absX, mode: absoluteX, cycles: 7, mnemonic: "SLO") # Unofficial
   opcodeTable[0xa4] = OpcodeInfo(handler: opLDY_zp, mode: zeroPage, cycles: 3, mnemonic: "LDY")
   opcodeTable[0xa5] = OpcodeInfo(handler: opLDA_zp, mode: zeroPage, cycles: 3, mnemonic: "LDA")
   opcodeTable[0xa6] = OpcodeInfo(handler: opLDX_zp, mode: zeroPage, cycles: 3, mnemonic: "LDX")
@@ -848,9 +770,5 @@ proc setupOpcodeTable*() =
   opcodeTable[0xd0] = OpcodeInfo(handler: opBNE, mode: relative, cycles: 2, mnemonic: "BNE")
   opcodeTable[0xe8] = OpcodeInfo(handler: opINX, mode: immediate, cycles: 2, mnemonic: "INX")
   opcodeTable[0x19] = OpcodeInfo(handler: opORA_absY, mode: absoluteY, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
-  opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ")
-
-  opcodeTable[0x1D] = OpcodeInfo(handler: opORA_absX, mode: absoluteX, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
-  opcodeTable[0x1E] = OpcodeInfo(handler: opASL_absX, mode: absoluteX, cycles: 7, mnemonic: "ASL")
-  opcodeTable[0x1F] = OpcodeInfo(handler: opSLO_absX, mode: absoluteX, cycles: 7, mnemonic: "SLO") # Unofficial
+  opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ") # Cycles=2 base, +1 if branch taken, +1 more if page crossed
 
