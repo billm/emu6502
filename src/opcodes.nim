@@ -663,6 +663,18 @@ proc opCLC*(cpu: var CPU) =
 
 
 
+
+proc opNOP_implied_1A*(cpu: var CPU) =
+  ## NOP Implied - Opcode 0x1A (unofficial)
+  ## Action: No operation.
+  cpu.printOpCode("NOP (1A)")
+
+  # No flags or registers are affected
+
+  cpu.PC += 1 # Advance PC (1 byte instruction)
+  cpu.cycles += 2 # NOP implied takes 2 cycles
+
+
 proc setupOpcodeTable*() =
   for i in 0..255:
     opcodeTable[i].handler = nil
@@ -705,6 +717,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0xa0] = OpcodeInfo(handler: opLDY, mode: immediate, cycles: 2, mnemonic: "LDY")
   opcodeTable[0xa1] = OpcodeInfo(handler: opLDA_indirectX, mode: indirectX, cycles: 6, mnemonic: "LDA")
   opcodeTable[0xa2] = OpcodeInfo(handler: opLDX, mode: immediate, cycles: 2, mnemonic: "LDX")
+  opcodeTable[0x1A] = OpcodeInfo(handler: opNOP_implied_1A, mode: immediate, cycles: 2, mnemonic: "NOP") # Unofficial, Implied mode
   opcodeTable[0xa4] = OpcodeInfo(handler: opLDY_zp, mode: zeroPage, cycles: 3, mnemonic: "LDY")
   opcodeTable[0xa5] = OpcodeInfo(handler: opLDA_zp, mode: zeroPage, cycles: 3, mnemonic: "LDA")
   opcodeTable[0xa6] = OpcodeInfo(handler: opLDX_zp, mode: zeroPage, cycles: 3, mnemonic: "LDX")

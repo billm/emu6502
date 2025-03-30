@@ -147,3 +147,47 @@ suite "NOP Opcode Unit Tests":
       # PC and Cycles updated
       cpu.PC == initialPC + 2
       cpu.cycles == initialCycles + 4
+
+
+  # --- Tests for Opcode 0x1A: NOP Implied (Unofficial) ---
+
+  test "NOP Implied (0x1A) - No Operation":
+    # Setup: NOP (1A)
+    # Action: Does nothing.
+    # Expected: PC+=1, Cycles+=2. A, X, Y, SP, Flags unchanged.
+    cpu.PC = 0x0800
+    cpu.A = 0xAA
+    cpu.X = 0xBB
+    cpu.Y = 0xCC
+    cpu.SP = 0xFD
+    cpu.setFlags(0b11001100) # Set some flags initially
+    cpu.cycles = 10
+
+    mem.mem[0x0800] = 0x1A  # NOP Implied opcode
+
+    let initialA = cpu.A
+    let initialX = cpu.X
+    let initialY = cpu.Y
+    let initialSP = cpu.SP
+    let initialFlags = cpu.flags()
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail() # Fail explicitly if not implemented
+
+    check:
+      # State unchanged
+      cpu.A == initialA
+      cpu.X == initialX
+      cpu.Y == initialY
+      cpu.SP == initialSP
+      cpu.flags() == initialFlags
+
+      # PC and Cycles updated
+      cpu.PC == initialPC + 1
+      cpu.cycles == initialCycles + 2
