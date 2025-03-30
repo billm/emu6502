@@ -1,9 +1,11 @@
 import types
 import memory
+import strutils
 
 # Push a byte onto the stack
 proc push*(cpu: var CPU, val: uint8) =
-  cpu.memory[cpu.SP.uint16 or 0x100] = val
+  let writeAddr = cpu.SP.uint16 or 0x100
+  cpu.memory[writeAddr] = val
   dec cpu.SP
 
 # Pull a byte from the stack

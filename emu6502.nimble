@@ -22,6 +22,7 @@ task test, "Run test suite":
   exec "nim c -r tests/unit/test_opcode_ASL.nim"
   exec "nim c -r tests/unit/test_opcode_BRK.nim"
   exec "nim c -r tests/unit/test_opcode_KIL.nim"
+  exec "nim c -r tests/unit/test_opcode_JSR.nim"
   exec "nim c -r tests/unit/test_opcode_LDA.nim"
   exec "nim c -r tests/unit/test_opcode_NOP.nim"
   exec "nim c -r tests/unit/test_opcode_ORA.nim"
