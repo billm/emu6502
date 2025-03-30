@@ -712,6 +712,33 @@ proc opORA_absX*(cpu: var CPU) =
   cpu.cycles += 4 + uint16(result.extraCycles) # ORA Absolute,X takes 4 cycles (+1 if page crossed)
 
 
+
+proc opASL_absX*(cpu: var CPU) =
+  ## ASL Absolute,X - Opcode 0x1E
+  ## Action: M = M << 1
+  let result = resolveAddressingMode(cpu, absoluteX)
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8)
+  cpu.printOpCode(effectiveAddr, &"ASL ${baseAddr.toHex:04},X @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+
+  # 1. Perform ASL
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[effectiveAddr] = shiftedValue
+
+  # 3. Update flags based on the *shifted* value
+  cpu.setZ(shiftedValue)
+  cpu.setN(shiftedValue)
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
+  cpu.cycles += 7 # ASL Absolute,X takes 7 cycles (fixed)
+
+
+
 proc opCLC*(cpu: var CPU) =
   ## CLC Implied - Opcode 0x18
   ## Action: Clear Carry Flag (C = 0)
@@ -795,3 +822,4 @@ proc setupOpcodeTable*() =
   opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ")
 
   opcodeTable[0x1D] = OpcodeInfo(handler: opORA_absX, mode: absoluteX, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
+  opcodeTable[0x1E] = OpcodeInfo(handler: opASL_absX, mode: absoluteX, cycles: 7, mnemonic: "ASL")

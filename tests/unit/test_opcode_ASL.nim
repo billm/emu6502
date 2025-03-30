@@ -621,3 +621,177 @@ suite "ASL Opcode Unit Tests":
       cpu.C == true                  # Carry flag set
       cpu.PC == 0x1102               # PC advanced by 2
       cpu.cycles == 6                # Cycles correct
+
+
+  # --- Tests for Opcode 0x1E: ASL Absolute,X ---
+
+  test "ASL Absolute,X - Basic Shift, No Carry, No Page Cross":
+    # Setup: ASL $1234,X (1E 34 12) with X = $0A
+    # Effective Address = $1234 + $0A = $123E
+    # Value at $123E = $41 (01000001)
+    # Expected: Memory[$123E] = $82 (10000010), C=0, Z=0, N=1
+    cpu.PC = 0x2000
+    cpu.X = 0x0A
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C, Z initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0x1234
+    let effectiveAddr: uint16 = baseAddr + cpu.X.uint16 # $123E
+    let initialValue: uint8 = 0x41
+    let expectedValue: uint8 = 0x82
+
+    mem.mem[cpu.PC] = 0x1E      # ASL Absolute,X
+    mem.mem[cpu.PC + 1] = lowByte(baseAddr) # $34
+    mem.mem[cpu.PC + 2] = highByte(baseAddr) # $12
+    mem.mem[effectiveAddr] = initialValue
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail() # Expect failure here
+
+    check:
+      mem.mem[effectiveAddr] == expectedValue # Memory updated
+      not cpu.Z                      # Zero flag clear
+      cpu.N == true                  # Negative flag set
+      not cpu.C                      # Carry flag clear
+      cpu.PC == 0x2003               # PC advanced by 3
+      cpu.cycles == 7                # ASL Absolute,X takes 7 cycles
+
+  test "ASL Absolute,X - Sets Carry Flag, No Page Cross":
+    # Setup: ASL $ABCD,X (1E CD AB) with X = $10
+    # Effective Address = $ABCD + $10 = $ABDD
+    # Value at $ABDD = $81 (10000001)
+    # Expected: Memory[$ABDD] = $02 (00000010), C=1, Z=0, N=0
+    cpu.PC = 0x2100
+    cpu.X = 0x10
+    cpu.setFlags(0x20'u8 or 0x80'u8 or 0x02'u8) # Set N, Z initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xABCD
+    let effectiveAddr: uint16 = baseAddr + cpu.X.uint16 # $ABDD
+    let initialValue: uint8 = 0x81
+    let expectedValue: uint8 = 0x02
+
+    mem.mem[cpu.PC] = 0x1E      # ASL Absolute,X
+    mem.mem[cpu.PC + 1] = lowByte(baseAddr) # $CD
+    mem.mem[cpu.PC + 2] = highByte(baseAddr) # $AB
+    mem.mem[effectiveAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      mem.mem[effectiveAddr] == expectedValue # Memory updated
+      not cpu.Z                      # Zero flag clear
+      not cpu.N                      # Negative flag clear
+      cpu.C == true                  # Carry flag set
+      cpu.PC == 0x2103               # PC advanced by 3
+      cpu.cycles == 7                # Cycles correct
+
+  test "ASL Absolute,X - Sets Zero Flag (and Carry), No Page Cross":
+    # Setup: ASL $BEE0,X (1E E0 BE) with X = $0F
+    # Effective Address = $BEE0 + $0F = $BEEF
+    # Value at $BEEF = $80 (10000000)
+    # Expected: Memory[$BEEF] = $00 (00000000), C=1, Z=1, N=0
+    cpu.PC = 0x2200
+    cpu.X = 0x0F
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xBEE0
+    let effectiveAddr: uint16 = baseAddr + cpu.X.uint16 # $BEEF
+    let initialValue: uint8 = 0x80
+    let expectedValue: uint8 = 0x00
+
+    mem.mem[cpu.PC] = 0x1E      # ASL Absolute,X
+    mem.mem[cpu.PC + 1] = lowByte(baseAddr) # $E0
+    mem.mem[cpu.PC + 2] = highByte(baseAddr) # $BE
+    mem.mem[effectiveAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      mem.mem[effectiveAddr] == expectedValue # Memory updated
+      cpu.Z == true                  # Zero flag set
+      not cpu.N                      # Negative flag clear
+      cpu.C == true                  # Carry flag set
+      cpu.PC == 0x2203               # PC advanced by 3
+      cpu.cycles == 7                # Cycles correct
+
+  test "ASL Absolute,X - Sets Negative Flag, No Page Cross":
+    # Setup: ASL $CAF0,X (1E F0 CA) with X = $0E
+    # Effective Address = $CAF0 + $0E = $CAFE
+    # Value at $CAFE = $40 (01000000)
+    # Expected: Memory[$CAFE] = $80 (10000000), C=0, Z=0, N=1
+    cpu.PC = 0x2300
+    cpu.X = 0x0E
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x02'u8) # Set C, Z initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xCAF0
+    let effectiveAddr: uint16 = baseAddr + cpu.X.uint16 # $CAFE
+    let initialValue: uint8 = 0x40
+    let expectedValue: uint8 = 0x80
+
+    mem.mem[cpu.PC] = 0x1E      # ASL Absolute,X
+    mem.mem[cpu.PC + 1] = lowByte(baseAddr) # $F0
+    mem.mem[cpu.PC + 2] = highByte(baseAddr) # $CA
+    mem.mem[effectiveAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      mem.mem[effectiveAddr] == expectedValue # Memory updated
+      not cpu.Z                      # Zero flag clear
+      cpu.N == true                  # Negative flag set
+      not cpu.C                      # Carry flag clear
+      cpu.PC == 0x2303               # PC advanced by 3
+      cpu.cycles == 7                # Cycles correct
+
+  test "ASL Absolute,X - Page Crossing":
+    # Setup: ASL $12F0,X (1E F0 12) with X = $20
+    # Effective Address = $12F0 + $20 = $1310 (crosses page boundary)
+    # Value at $1310 = $C1 (11000001)
+    # Expected: Memory[$1310] = $82 (10000010), C=1, Z=0, N=1
+    # Cycle count should still be 7 for ASL Absolute,X, even with page cross.
+    cpu.PC = 0x2400
+    cpu.X = 0x20
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0x12F0
+    let effectiveAddr: uint16 = baseAddr + cpu.X.uint16 # $1310
+    let initialValue: uint8 = 0xC1
+    let expectedValue: uint8 = 0x82
+
+    mem.mem[cpu.PC] = 0x1E      # ASL Absolute,X
+    mem.mem[cpu.PC + 1] = lowByte(baseAddr) # $F0
+    mem.mem[cpu.PC + 2] = highByte(baseAddr) # $12
+    mem.mem[effectiveAddr] = initialValue
+
+    # Execute
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      mem.mem[effectiveAddr] == expectedValue # Memory updated
+      not cpu.Z                      # Zero flag clear
+      cpu.N == true                  # Negative flag set
+      cpu.C == true                  # Carry flag set
+      cpu.PC == 0x2403               # PC advanced by 3
+      cpu.cycles == 7                # Cycles correct (7 cycles regardless of page cross)
