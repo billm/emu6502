@@ -632,6 +632,20 @@ proc opORA_indirectY*(cpu: var CPU) =
   cpu.cycles += 5 + uint16(result.extraCycles) # ORA (Indirect),Y takes 5 cycles (+1 if page crossed)
 
 
+proc opCLC*(cpu: var CPU) =
+  ## CLC Implied - Opcode 0x18
+  ## Action: Clear Carry Flag (C = 0)
+  cpu.printOpCode("CLC")
+
+  # Clear the Carry flag
+  cpu.C = false
+
+  # Update PC and Cycles
+  cpu.PC += 1 # Implied addressing, 1 byte instruction
+  cpu.cycles += 2 # CLC takes 2 cycles
+
+
+
 proc setupOpcodeTable*() =
   for i in 0..255:
     opcodeTable[i].handler = nil
@@ -665,6 +679,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x16] = OpcodeInfo(handler: opASL_zpX, mode: zeroPageX, cycles: 6, mnemonic: "ASL")
   opcodeTable[0x17] = OpcodeInfo(handler: opSLO_zpX, mode: zeroPageX, cycles: 6, mnemonic: "SLO") # Unofficial
 
+  opcodeTable[0x18] = OpcodeInfo(handler: opCLC, mode: immediate, cycles: 2, mnemonic: "CLC") # Implied mode
   opcodeTable[0x20] = OpcodeInfo(handler: opJSR, mode: absolute, cycles: 6, mnemonic: "JSR")
   opcodeTable[0x60] = OpcodeInfo(handler: opRTS, mode: immediate, cycles: 6, mnemonic: "RTS")
   opcodeTable[0x84] = OpcodeInfo(handler: opSTY, mode: zeroPage, cycles: 3, mnemonic: "STY")
