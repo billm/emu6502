@@ -687,6 +687,25 @@ proc opASL_absX*(cpu: var CPU) =
 
 
 
+
+proc opAND_21*(cpu: var CPU) =
+  ## AND (Indirect,X) - Opcode 0x21
+  ## Action: A = A & M
+  let result = resolveAddressingMode(cpu, indirectX)
+  let value = cpu.memory[result.address]
+  cpu.printOpCode(result.address, &"AND (${(cpu.memory[cpu.PC + 1]).toHex:02},X) @ {result.address.toHex:04} = {value.toHex:02}")
+
+  # Perform AND operation
+  cpu.A = cpu.A and value
+
+  # Update Z and N flags
+  cpu.updateZNFlags(cpu.A)
+
+  # Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 6 + uint16(result.extraCycles) # AND (Indirect,X) takes 6 cycles
+
+
 proc opCLC*(cpu: var CPU) =
   ## CLC Implied - Opcode 0x18
   ## Action: Clear Carry Flag (C = 0)
@@ -729,6 +748,8 @@ proc setupOpcodeTable*() =
   opcodeTable[0x05] = OpcodeInfo(handler: opORA_zp, mode: zeroPage, cycles: 3, mnemonic: "ORA")
   opcodeTable[0x06] = OpcodeInfo(handler: opASL_zp, mode: zeroPage, cycles: 5, mnemonic: "ASL")
   opcodeTable[0x07] = OpcodeInfo(handler: opSLO_zp, mode: zeroPage, cycles: 5, mnemonic: "SLO") # Unofficial
+  opcodeTable[0x21] = OpcodeInfo(handler: opAND_21, mode: indirectX, cycles: 6, mnemonic: "AND")
+
   opcodeTable[0x08] = OpcodeInfo(handler: opPHP, mode: immediate, cycles: 3, mnemonic: "PHP") # Technically implied, using immediate for consistency
   opcodeTable[0x09] = OpcodeInfo(handler: opORA_imm, mode: immediate, cycles: 2, mnemonic: "ORA")
   opcodeTable[0x0A] = OpcodeInfo(handler: opASL_acc, mode: immediate, cycles: 2, mnemonic: "ASL") # Accumulator mode
