@@ -1208,3 +1208,241 @@ suite "SLO Opcode Unit Tests":
       cpu.PC == 0x1703          # PC advanced by 3
       cpu.cycles == 7           # Cycles correct (fixed at 7)
 
+
+  # --- Tests for Opcode 0x1F: SLO Absolute,X ---
+
+  test "SLO Absolute,X - Basic Operation, No Carry, No Page Cross":
+    # Setup: SLO $C050,X where X=0x05 (1F 50 C0)
+    # Base address = $C050
+    # Effective address = $C050 + X = $C050 + $05 = $C055
+    # Initial value M at $C055 is $41 (01000001)
+    # Initial A = $12 (00010010)
+    #
+    # Action:
+    # 1. ASL on M: $41 << 1 = $82 (10000010). Carry = 0.
+    # 2. Write $82 back to $C055.
+    # 3. ORA: A = A | shifted M = $12 | $82 = $92 (10010010)
+    #
+    # Expected State:
+    # A = $92
+    # Memory[$C055] = $82
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 3
+    # Cycles = Cycles + 7
+    cpu.PC = 0x1800
+    cpu.X = 0x05
+    cpu.A = 0x12
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xC050
+    let effectiveAddr = baseAddr + cpu.X.uint16
+
+    mem.mem[cpu.PC] = 0x1F       # SLO Absolute,X
+    mem.mem[cpu.PC + 1] = uint8(baseAddr and 0xFF) # Low byte
+    mem.mem[cpu.PC + 2] = uint8(baseAddr shr 8)    # High byte
+    mem.mem[effectiveAddr] = 0x41 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x92             # Accumulator updated (12 | 82 = 92)
+      mem.mem[effectiveAddr] == 0x82   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (92 != 0)
+      cpu.N == true             # Negative flag set (bit 7 of 92 is 1)
+      not cpu.C                 # Carry flag clear (original bit 7 of 41 was 0)
+      cpu.PC == 0x1803          # PC advanced by 3
+      cpu.cycles == 7           # SLO Absolute,X takes 7 cycles
+
+  test "SLO Absolute,X - Sets Carry Flag, No Page Cross":
+    # Setup: SLO $D450,X where X=0x02 (1F 50 D4)
+    # Base address = $D450
+    # Effective address = $D450 + X = $D450 + $02 = $D452
+    # Initial value M at $D452 is $81 (10000001)
+    # Initial A = $0F (00001111)
+    #
+    # Action:
+    # 1. ASL on M: $81 << 1 = $02 (00000010). Carry = 1.
+    # 2. Write $02 back to $D452.
+    # 3. ORA: A = A | shifted M = $0F | $02 = $0F (00001111)
+    #
+    # Expected State:
+    # A = $0F
+    # Memory[$D452] = $02
+    # Flags: N=0, Z=0, C=1
+    # PC = PC + 3
+    # Cycles = Cycles + 7
+    cpu.PC = 0x1900
+    cpu.X = 0x02
+    cpu.A = 0x0F
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xD450
+    let effectiveAddr = baseAddr + cpu.X.uint16
+
+    mem.mem[cpu.PC] = 0x1F       # SLO Absolute,X
+    mem.mem[cpu.PC + 1] = uint8(baseAddr and 0xFF) # Low byte
+    mem.mem[cpu.PC + 2] = uint8(baseAddr shr 8)    # High byte
+    mem.mem[effectiveAddr] = 0x81 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x0F             # Accumulator updated (0F | 02 = 0F)
+      mem.mem[effectiveAddr] == 0x02   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (0F != 0)
+      not cpu.N                 # Negative flag clear (bit 7 of 0F is 0)
+      cpu.C == true             # Carry flag set (original bit 7 of 81 was 1)
+      cpu.PC == 0x1903          # PC advanced by 3
+      cpu.cycles == 7           # Cycles correct
+
+  test "SLO Absolute,X - Sets Zero Flag, No Page Cross":
+    # Setup: SLO $E780,X where X=0x01 (1F 80 E7)
+    # Base address = $E780
+    # Effective address = $E780 + X = $E780 + $01 = $E781
+    # Initial value M at $E781 is $80 (10000000) -> ASL -> $00, C=1
+    # Initial A = $00 (00000000)
+    #
+    # Action:
+    # 1. ASL on M: $80 << 1 = $00. Carry = 1.
+    # 2. Write $00 back to $E781.
+    # 3. ORA: A = A | shifted M = $00 | $00 = $00
+    #
+    # Expected State:
+    # A = $00
+    # Memory[$E781] = $00
+    # Flags: N=0, Z=1, C=1
+    # PC = PC + 3
+    # Cycles = Cycles + 7
+    cpu.PC = 0x1A00
+    cpu.X = 0x01
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially, clear C
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xE780
+    let effectiveAddr = baseAddr + cpu.X.uint16
+
+    mem.mem[cpu.PC] = 0x1F       # SLO Absolute,X
+    mem.mem[cpu.PC + 1] = uint8(baseAddr and 0xFF) # Low byte
+    mem.mem[cpu.PC + 2] = uint8(baseAddr shr 8)    # High byte
+    mem.mem[effectiveAddr] = 0x80 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x00             # Accumulator is zero
+      mem.mem[effectiveAddr] == 0x00   # Memory updated with shifted value
+      cpu.Z == true             # Zero flag set
+      not cpu.N                 # Negative flag clear
+      cpu.C == true             # Carry flag set (original bit 7 of 80 was 1)
+      cpu.PC == 0x1A03          # PC advanced by 3
+      cpu.cycles == 7           # Cycles correct
+
+  test "SLO Absolute,X - Sets Negative Flag, No Page Cross":
+    # Setup: SLO $F010,X where X=0x03 (1F 10 F0)
+    # Base address = $F010
+    # Effective address = $F010 + X = $F010 + $03 = $F013
+    # Initial value M at $F013 is $40 (01000000) -> ASL -> $80, C=0
+    # Initial A = $01 (00000001)
+    #
+    # Action:
+    # 1. ASL on M: $40 << 1 = $80. Carry = 0.
+    # 2. Write $80 back to $F013.
+    # 3. ORA: A = A | shifted M = $01 | $80 = $81
+    #
+    # Expected State:
+    # A = $81
+    # Memory[$F013] = $80
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 3
+    # Cycles = Cycles + 7
+    cpu.PC = 0x1B00
+    cpu.X = 0x03
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xF010
+    let effectiveAddr = baseAddr + cpu.X.uint16
+
+    mem.mem[cpu.PC] = 0x1F       # SLO Absolute,X
+    mem.mem[cpu.PC + 1] = uint8(baseAddr and 0xFF) # Low byte
+    mem.mem[cpu.PC + 2] = uint8(baseAddr shr 8)    # High byte
+    mem.mem[effectiveAddr] = 0x40 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x81             # Accumulator updated (01 | 80 = 81)
+      mem.mem[effectiveAddr] == 0x80   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      cpu.N == true             # Negative flag set
+      not cpu.C                 # Carry flag clear
+      cpu.PC == 0x1B03          # PC advanced by 3
+      cpu.cycles == 7           # Cycles correct
+
+  test "SLO Absolute,X - Page Crossing":
+    # Setup: SLO $C180,X where X=0x85 (1F 80 C1)
+    # Base address = $C180
+    # Effective address = $C180 + X = $C180 + $85 = $C205 (crosses page boundary)
+    # Initial value M at $C205 is $01 (00000001)
+    # Initial A = $02 (00000010)
+    #
+    # Action:
+    # 1. ASL on M: $01 << 1 = $02. Carry = 0.
+    # 2. Write $02 back to $C205.
+    # 3. ORA: A = A | shifted M = $02 | $02 = $02
+    #
+    # Expected State:
+    # A = $02
+    # Memory[$C205] = $02
+    # Flags: N=0, Z=0, C=0
+    # PC = PC + 3
+    # Cycles = Cycles + 7 (Fixed for SLO, even with page cross)
+    cpu.PC = 0x1C00
+    cpu.X = 0x85
+    cpu.A = 0x02
+    cpu.setFlags(0x20'u8 or 0x01'u8 or 0x80'u8 or 0x02'u8) # Set N,Z,C initially
+    cpu.cycles = 0
+    let baseAddr: uint16 = 0xC180
+    let effectiveAddr = baseAddr + cpu.X.uint16
+
+    mem.mem[cpu.PC] = 0x1F       # SLO Absolute,X
+    mem.mem[cpu.PC + 1] = uint8(baseAddr and 0xFF) # Low byte
+    mem.mem[cpu.PC + 2] = uint8(baseAddr shr 8)    # High byte
+    mem.mem[effectiveAddr] = 0x01 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x02             # Accumulator updated (02 | 02 = 02)
+      mem.mem[effectiveAddr] == 0x02   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      not cpu.N                 # Negative flag clear
+      not cpu.C                 # Carry flag clear
+      cpu.PC == 0x1C03          # PC advanced by 3
+      cpu.cycles == 7           # Cycles correct (fixed at 7)
+

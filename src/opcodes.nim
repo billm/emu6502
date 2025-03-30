@@ -571,6 +571,35 @@ proc opSLO_absY*(cpu: var CPU) =
   cpu.cycles += 7
 
 
+
+proc opSLO_absX*(cpu: var CPU) =
+  ## SLO Absolute,X - Opcode 0x1F (unofficial)
+  ## Action: M = M << 1; A = A | M
+  let result = resolveAddressingMode(cpu, absoluteX) # Use absoluteX
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8) # For printing
+  cpu.printOpCode(effectiveAddr, &"SLO ${baseAddr.toHex:04},X @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+
+  # 1. ASL on M
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[effectiveAddr] = shiftedValue
+
+  # 3. ORA with Accumulator using the *shifted* value
+  cpu.A = cpu.A or shiftedValue
+  cpu.setZ(cpu.A) # Z flag based on final A
+  cpu.setN(cpu.A) # N flag based on final A
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
+  # Note: SLO Absolute,X always takes 7 cycles, regardless of page cross.
+  # The extraCycles from resolveAddressingMode are ignored for this specific opcode.
+  cpu.cycles += 7
+
+
 proc opASL_zpX*(cpu: var CPU) =
   ## ASL ZeroPage,X - Opcode 0x16
   ## Action: M = M << 1
@@ -823,3 +852,5 @@ proc setupOpcodeTable*() =
 
   opcodeTable[0x1D] = OpcodeInfo(handler: opORA_absX, mode: absoluteX, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
   opcodeTable[0x1E] = OpcodeInfo(handler: opASL_absX, mode: absoluteX, cycles: 7, mnemonic: "ASL")
+  opcodeTable[0x1F] = OpcodeInfo(handler: opSLO_absX, mode: absoluteX, cycles: 7, mnemonic: "SLO") # Unofficial
+
