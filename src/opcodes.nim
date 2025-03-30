@@ -184,6 +184,29 @@ proc opASL_zp*(cpu: var CPU) =
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   cpu.cycles += 5 # ASL ZeroPage takes 5 cycles
  
+
+
+proc opBIT_24*(cpu: var CPU) =
+  ## BIT ZeroPage - Opcode 0x24
+  ## Action: Tests bits in memory with accumulator (A & M).
+  ## Flags: Z is set if A & M is zero. N gets M bit 7. V gets M bit 6.
+  let result = resolveAddressingMode(cpu, zeroPage)
+  let effectiveAddr = result.address
+  let value = cpu.memory[effectiveAddr]
+  cpu.printOpCode(effectiveAddr, &"BIT ${effectiveAddr.toHex:02} = {value.toHex:02}")
+
+  # 1. Perform A & M to determine Zero flag
+  let testResult = cpu.A and value
+  cpu.Z = (testResult == 0)
+
+  # 2. Set N and V flags based on memory value's bits 7 and 6
+  cpu.N = ((value and 0x80'u8) != 0) # Bit 7
+  cpu.V = ((value and 0x40'u8) != 0) # Bit 6
+
+  # 3. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
+  cpu.cycles += 3 # BIT ZeroPage takes 3 cycles
+
  
 proc opPHP*(cpu: var CPU) =
   ## PHP Implied - Opcode 0x08
@@ -749,6 +772,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x06] = OpcodeInfo(handler: opASL_zp, mode: zeroPage, cycles: 5, mnemonic: "ASL")
   opcodeTable[0x07] = OpcodeInfo(handler: opSLO_zp, mode: zeroPage, cycles: 5, mnemonic: "SLO") # Unofficial
   opcodeTable[0x21] = OpcodeInfo(handler: opAND_21, mode: indirectX, cycles: 6, mnemonic: "AND")
+  opcodeTable[0x24] = OpcodeInfo(handler: opBIT_24, mode: zeroPage, cycles: 3, mnemonic: "BIT")
 
   opcodeTable[0x08] = OpcodeInfo(handler: opPHP, mode: immediate, cycles: 3, mnemonic: "PHP") # Technically implied, using immediate for consistency
   opcodeTable[0x09] = OpcodeInfo(handler: opORA_imm, mode: immediate, cycles: 2, mnemonic: "ORA")
