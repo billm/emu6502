@@ -694,6 +694,24 @@ proc opORA_absY*(cpu: var CPU) =
   cpu.cycles += 4 + uint16(result.extraCycles) # ORA Absolute,Y takes 4 cycles (+1 if page crossed)
 
 
+
+
+proc opORA_absX*(cpu: var CPU) =
+  ## ORA Absolute,X - Opcode 0x1D
+  ## Action: A = A | M
+  let result = resolveAddressingMode(cpu, absoluteX)
+  let value = cpu.memory[result.address]
+  let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8)
+  cpu.printOpCode(result.address, &"ORA ${baseAddr.toHex:04},X @ {result.address.toHex:04} = {value.toHex:02}")
+
+  cpu.A = cpu.A or value
+  cpu.setZ(cpu.A)
+  cpu.setN(cpu.A)
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
+  cpu.cycles += 4 + uint16(result.extraCycles) # ORA Absolute,X takes 4 cycles (+1 if page crossed)
+
+
 proc opCLC*(cpu: var CPU) =
   ## CLC Implied - Opcode 0x18
   ## Action: Clear Carry Flag (C = 0)
@@ -775,3 +793,5 @@ proc setupOpcodeTable*() =
   opcodeTable[0xe8] = OpcodeInfo(handler: opINX, mode: immediate, cycles: 2, mnemonic: "INX")
   opcodeTable[0x19] = OpcodeInfo(handler: opORA_absY, mode: absoluteY, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
   opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ")
+
+  opcodeTable[0x1D] = OpcodeInfo(handler: opORA_absX, mode: absoluteX, cycles: 4, mnemonic: "ORA") # Cycles=4 base, +1 if page crossed
