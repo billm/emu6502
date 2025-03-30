@@ -130,3 +130,83 @@ suite "AND Opcode Tests":
     check cpu.cycles == initialCycles + 6
     check cpu.flags.z == false
     check cpu.flags.n == true
+
+  test "0x25 - AND ZeroPage - Basic Operation":
+    var cpu = initCpu()
+    var mem = initMemory()
+    cpu.mem = mem
+
+    # Setup initial state
+    cpu.a = 0b11110000 # Accumulator value
+    cpu.pc = 0x0600    # Program Counter start
+
+    # Instruction: AND $42
+    mem.write(cpu.pc, 0x25)     # Opcode
+    mem.write(cpu.pc + 1, 0x42) # Zero page address operand
+
+    # Value at zero page address $0042
+    mem.write(0x0042, 0b10101010) # Value to AND with
+
+    # Expected result: 0b11110000 & 0b10101010 = 0b10100000
+    let expectedResult: byte = 0b10100000
+    let initialCycles = cpu.cycles
+
+    # Execute instruction
+    cpu.step()
+
+    # Assertions
+    check cpu.a == expectedResult
+    check cpu.pc == 0x0602 # PC should increment by 2
+    check cpu.cycles == initialCycles + 3 # Cycle count for ZeroPage
+    check cpu.flags.z == false # Zero flag should be clear
+    check cpu.flags.n == true  # Negative flag should be set (bit 7 is 1)
+
+  test "0x25 - AND ZeroPage - Zero Flag Set":
+    var cpu = initCpu()
+    var mem = initMemory()
+    cpu.mem = mem
+
+    cpu.a = 0b00110011
+    cpu.pc = 0x0700
+
+    mem.write(cpu.pc, 0x25)
+    mem.write(cpu.pc + 1, 0xAA) # Zero page address
+
+    mem.write(0x00AA, 0b11001100) # Value to AND with
+
+    # Expected result: 0b00110011 & 0b11001100 = 0b00000000
+    let expectedResult: byte = 0b00000000
+    let initialCycles = cpu.cycles
+
+    cpu.step()
+
+    check cpu.a == expectedResult
+    check cpu.pc == 0x0702
+    check cpu.cycles == initialCycles + 3
+    check cpu.flags.z == true  # Zero flag should be set
+    check cpu.flags.n == false # Negative flag should be clear
+
+  test "0x25 - AND ZeroPage - Negative Flag Clear":
+    var cpu = initCpu()
+    var mem = initMemory()
+    cpu.mem = mem
+
+    cpu.a = 0b01110000
+    cpu.pc = 0x0800
+
+    mem.write(cpu.pc, 0x25)
+    mem.write(cpu.pc + 1, 0x33) # Zero page address
+
+    mem.write(0x0033, 0b00001111) # Value to AND with
+
+    # Expected result: 0b01110000 & 0b00001111 = 0b00000000
+    let expectedResult: byte = 0b00000000
+    let initialCycles = cpu.cycles
+
+    cpu.step()
+
+    check cpu.a == expectedResult
+    check cpu.pc == 0x0802
+    check cpu.cycles == initialCycles + 3
+    check cpu.flags.z == true  # Zero flag should be set
+    check cpu.flags.n == false # Negative flag should be clear (bit 7 is 0)

@@ -208,6 +208,26 @@ proc opBIT_24*(cpu: var CPU) =
   cpu.cycles += 3 # BIT ZeroPage takes 3 cycles
 
  
+
+proc opAND_25*(cpu: var CPU) =
+  ## AND ZeroPage - Opcode 0x25
+  ## Action: A = A & M
+  let result = resolveAddressingMode(cpu, zeroPage)
+  let effectiveAddr = result.address
+  let value = cpu.memory[effectiveAddr]
+  cpu.printOpCode(effectiveAddr, &"AND ${effectiveAddr.toHex:02} = {value.toHex:02}")
+
+  # 1. Perform AND operation
+  cpu.A = cpu.A and value
+
+  # 2. Update N and Z flags based on the result in A
+  cpu.updateZNFlags(cpu.A)
+
+  # 3. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte = 2)
+  cpu.cycles += 3 # AND ZeroPage takes 3 cycles
+
+
 proc opPHP*(cpu: var CPU) =
   ## PHP Implied - Opcode 0x08
   ## Action: Push Processor Status onto Stack (with bits 4 & 5 set)
@@ -773,6 +793,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x07] = OpcodeInfo(handler: opSLO_zp, mode: zeroPage, cycles: 5, mnemonic: "SLO") # Unofficial
   opcodeTable[0x21] = OpcodeInfo(handler: opAND_21, mode: indirectX, cycles: 6, mnemonic: "AND")
   opcodeTable[0x24] = OpcodeInfo(handler: opBIT_24, mode: zeroPage, cycles: 3, mnemonic: "BIT")
+  opcodeTable[0x25] = OpcodeInfo(handler: opAND_25, mode: zeroPage, cycles: 3, mnemonic: "AND")
 
   opcodeTable[0x08] = OpcodeInfo(handler: opPHP, mode: immediate, cycles: 3, mnemonic: "PHP") # Technically implied, using immediate for consistency
   opcodeTable[0x09] = OpcodeInfo(handler: opORA_imm, mode: immediate, cycles: 2, mnemonic: "ORA")
