@@ -526,6 +526,35 @@ proc opSLO_zpX*(cpu: var CPU) =
 
   
 
+
+proc opSLO_absY*(cpu: var CPU) =
+  ## SLO Absolute,Y - Opcode 0x1B (unofficial)
+  ## Action: M = M << 1; A = A | M
+  let result = resolveAddressingMode(cpu, absoluteY) # Fetch address first
+  let effectiveAddr = result.address
+  let originalValue = cpu.memory[effectiveAddr]
+  let baseAddr = uint16(cpu.memory[cpu.PC + 1]) or (uint16(cpu.memory[cpu.PC + 2]) shl 8) # For printing
+  cpu.printOpCode(effectiveAddr, &"SLO ${baseAddr.toHex:04},Y @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
+
+  # 1. ASL on M
+  cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
+  let shiftedValue = originalValue shl 1
+
+  # 2. Write shifted value back to memory
+  cpu.memory[effectiveAddr] = shiftedValue
+
+  # 3. ORA with Accumulator using the *shifted* value
+  cpu.A = cpu.A or shiftedValue
+  cpu.setZ(cpu.A) # Z flag based on final A
+  cpu.setN(cpu.A) # N flag based on final A
+
+  # 4. Update PC and Cycles
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes)
+  # Note: SLO Absolute,Y always takes 7 cycles, regardless of page cross.
+  # The extraCycles from resolveAddressingMode are ignored for this specific opcode.
+  cpu.cycles += 7
+
+
 proc opASL_zpX*(cpu: var CPU) =
   ## ASL ZeroPage,X - Opcode 0x16
   ## Action: M = M << 1
@@ -718,6 +747,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0xa1] = OpcodeInfo(handler: opLDA_indirectX, mode: indirectX, cycles: 6, mnemonic: "LDA")
   opcodeTable[0xa2] = OpcodeInfo(handler: opLDX, mode: immediate, cycles: 2, mnemonic: "LDX")
   opcodeTable[0x1A] = OpcodeInfo(handler: opNOP_implied_1A, mode: immediate, cycles: 2, mnemonic: "NOP") # Unofficial, Implied mode
+  opcodeTable[0x1B] = OpcodeInfo(handler: opSLO_absY, mode: absoluteY, cycles: 7, mnemonic: "SLO") # Unofficial
   opcodeTable[0xa4] = OpcodeInfo(handler: opLDY_zp, mode: zeroPage, cycles: 3, mnemonic: "LDY")
   opcodeTable[0xa5] = OpcodeInfo(handler: opLDA_zp, mode: zeroPage, cycles: 3, mnemonic: "LDA")
   opcodeTable[0xa6] = OpcodeInfo(handler: opLDX_zp, mode: zeroPage, cycles: 3, mnemonic: "LDX")
