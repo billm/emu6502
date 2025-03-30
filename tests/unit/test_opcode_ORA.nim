@@ -755,3 +755,176 @@ suite "ORA Opcode Unit Tests":
       cpu.PC == 0x1202     # PC advanced by 2
       cpu.cycles == 4      # Cycles correct
 
+
+  # --- Tests for Opcode 0x19: ORA Absolute,Y ---
+
+  test "ORA Absolute,Y - Basic Operation, No Page Cross":
+    # Setup: ORA $1230,Y where Y=$04
+    # Base address = $1230
+    # Effective address = $1230 + Y = $1230 + $04 = $1234 (no page cross)
+    # Value at $1234 is $55
+    # Initial A = $AA
+    # Expected A = $AA | $55 = $FF
+    cpu.PC = 0x1300
+    cpu.Y = 0x04
+    cpu.A = 0xAA
+    cpu.setFlags(0x20'u8) # Clear N, Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x1300] = 0x19  # ORA Absolute,Y
+    mem.mem[0x1301] = 0x30  # Low byte of base address ($1230)
+    mem.mem[0x1302] = 0x12  # High byte of base address ($1230)
+
+    # Setup the value at the effective address
+    mem.mem[0x1234] = 0x55
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet, checks below will fail
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (AA | 55 = FF)
+      not cpu.Z            # Zero flag clear (FF != 0)
+      cpu.N == true        # Negative flag set (bit 7 of FF is 1)
+      cpu.PC == 0x1303     # PC advanced by 3 (opcode + 2 operand bytes)
+      cpu.cycles == 4      # ORA Absolute,Y takes 4 cycles (no page cross)
+
+  test "ORA Absolute,Y - Page Cross":
+    # Setup: ORA $12F8,Y where Y=$10
+    # Base address = $12F8
+    # Effective address = $12F8 + Y = $12F8 + $10 = $1308 (page cross)
+    # Value at $1308 is $0F
+    # Initial A = $F0
+    # Expected A = $F0 | $0F = $FF
+    cpu.PC = 0x1400
+    cpu.Y = 0x10
+    cpu.A = 0xF0
+    cpu.setFlags(0x20'u8) # Clear N, Z initially
+    cpu.cycles = 0
+
+    mem.mem[0x1400] = 0x19  # ORA Absolute,Y
+    mem.mem[0x1401] = 0xF8  # Low byte of base address ($12F8)
+    mem.mem[0x1402] = 0x12  # High byte of base address ($12F8)
+
+    # Setup the value at the effective address
+    mem.mem[0x1308] = 0x0F
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet, checks below will fail
+
+    check:
+      cpu.A == 0xFF        # Accumulator updated (F0 | 0F = FF)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x1403     # PC advanced by 3
+      cpu.cycles == 5      # ORA Absolute,Y takes 4 + 1 = 5 cycles (page cross)
+
+  test "ORA Absolute,Y - Sets Zero Flag":
+    # Setup: ORA $C010,Y where Y=$05
+    # Base address = $C010
+    # Effective address = $C010 + Y = $C010 + $05 = $C015
+    # Value at $C015 is $00
+    # Initial A = $00
+    # Expected A = $00 | $00 = $00
+    cpu.PC = 0x1500
+    cpu.Y = 0x05
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x1500] = 0x19  # ORA Absolute,Y
+    mem.mem[0x1501] = 0x10  # Low byte of base address ($C010)
+    mem.mem[0x1502] = 0xC0  # High byte of base address ($C010)
+
+    # Setup the value at the effective address
+    mem.mem[0xC015] = 0x00
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet, checks below will fail
+
+    check:
+      cpu.A == 0x00        # Accumulator is zero
+      cpu.Z == true        # Zero flag set
+      not cpu.N            # Negative flag clear
+      cpu.PC == 0x1503     # PC advanced by 3
+      cpu.cycles == 4      # No page cross
+
+  test "ORA Absolute,Y - Sets Negative Flag":
+    # Setup: ORA $D020,Y where Y=$0A
+    # Base address = $D020
+    # Effective address = $D020 + Y = $D020 + $0A = $D02A
+    # Value at $D02A is $80
+    # Initial A = $01
+    # Expected A = $01 | $80 = $81
+    cpu.PC = 0x1600
+    cpu.Y = 0x0A
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x02'u8) # Set Z initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x1600] = 0x19  # ORA Absolute,Y
+    mem.mem[0x1601] = 0x20  # Low byte of base address ($D020)
+    mem.mem[0x1602] = 0xD0  # High byte of base address ($D020)
+
+    # Setup the value at the effective address
+    mem.mem[0xD02A] = 0x80
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet, checks below will fail
+
+    check:
+      cpu.A == 0x81        # Accumulator updated (01 | 80 = 81)
+      not cpu.Z            # Zero flag clear
+      cpu.N == true        # Negative flag set
+      cpu.PC == 0x1603     # PC advanced by 3
+      cpu.cycles == 4      # No page cross
+
+  test "ORA Absolute,Y - Clears Negative Flag":
+    # Setup: ORA $E030,Y where Y=$0B
+    # Base address = $E030
+    # Effective address = $E030 + Y = $E030 + $0B = $E03B
+    # Value at $E03B is $0F
+    # Initial A = $70 (N flag clear)
+    # Expected A = $70 | $0F = $7F (N flag still clear)
+    cpu.PC = 0x1700
+    cpu.Y = 0x0B
+    cpu.A = 0x70
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially to ensure it gets cleared
+    cpu.cycles = 0
+
+    mem.mem[0x1700] = 0x19  # ORA Absolute,Y
+    mem.mem[0x1701] = 0x30  # Low byte of base address ($E030)
+    mem.mem[0x1702] = 0xE0  # High byte of base address ($E030)
+
+    # Setup the value at the effective address
+    mem.mem[0xE03B] = 0x0F
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      discard # Handler not implemented yet, checks below will fail
+
+    check:
+      cpu.A == 0x7F        # Accumulator updated (70 | 0F = 7F)
+      not cpu.Z            # Zero flag clear
+      not cpu.N            # Negative flag clear (bit 7 is 0)
+      cpu.PC == 0x1703     # PC advanced by 3
+      cpu.cycles == 4      # No page cross
+
