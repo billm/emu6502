@@ -191,3 +191,95 @@ suite "NOP Opcode Unit Tests":
       # PC and Cycles updated
       cpu.PC == initialPC + 1
       cpu.cycles == initialCycles + 2
+
+
+  # --- Tests for Opcode 0x1C: NOP Absolute,X (Unofficial) ---
+
+  test "NOP Absolute,X (0x1C) - No Page Cross":
+    # Setup: NOP $1234,X (1C 34 12) with X = $10
+    # Action: Reads from $1244 (1234 + 10) but does nothing.
+    # Expected: PC+=3, Cycles+=4. A, X, Y, SP, Flags unchanged.
+    cpu.PC = 0x0800
+    cpu.A = 0xAA
+    cpu.X = 0x10 # Key for Absolute,X
+    cpu.Y = 0xCC
+    cpu.SP = 0xFD
+    cpu.setFlags(0b11001100) # Set some flags initially
+    cpu.cycles = 10
+
+    mem.mem[0x0800] = 0x1C  # NOP Absolute,X opcode
+    mem.mem[0x0801] = 0x34  # Low byte of address
+    mem.mem[0x0802] = 0x12  # High byte of address
+    mem.mem[0x1244] = 0xDD  # Value at the effective address (0x1234 + 0x10)
+
+    let initialA = cpu.A
+    let initialX = cpu.X
+    let initialY = cpu.Y
+    let initialSP = cpu.SP
+    let initialFlags = cpu.flags()
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      # State unchanged
+      cpu.A == initialA
+      cpu.X == initialX # X should not change
+      cpu.Y == initialY
+      cpu.SP == initialSP
+      cpu.flags() == initialFlags
+
+      # PC and Cycles updated
+      cpu.PC == initialPC + 3
+      cpu.cycles == initialCycles + 4 # 4 cycles, no page cross
+
+  test "NOP Absolute,X (0x1C) - Page Cross":
+    # Setup: NOP $12F0,X (1C F0 12) with X = $20
+    # Action: Reads from $1310 (12F0 + 20, crosses page) but does nothing.
+    # Expected: PC+=3, Cycles+=5 (4 + 1 for page cross). A, X, Y, SP, Flags unchanged.
+    cpu.PC = 0x0800
+    cpu.A = 0xAA
+    cpu.X = 0x20 # Key for Absolute,X
+    cpu.Y = 0xCC
+    cpu.SP = 0xFD
+    cpu.setFlags(0b11001100) # Set some flags initially
+    cpu.cycles = 10
+
+    mem.mem[0x0800] = 0x1C  # NOP Absolute,X opcode
+    mem.mem[0x0801] = 0xF0  # Low byte of address
+    mem.mem[0x0802] = 0x12  # High byte of address
+    mem.mem[0x1310] = 0xEE  # Value at the effective address (0x12F0 + 0x20 = 0x1310)
+
+    let initialA = cpu.A
+    let initialX = cpu.X
+    let initialY = cpu.Y
+    let initialSP = cpu.SP
+    let initialFlags = cpu.flags()
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      # State unchanged
+      cpu.A == initialA
+      cpu.X == initialX # X should not change
+      cpu.Y == initialY
+      cpu.SP == initialSP
+      cpu.flags() == initialFlags
+
+      # PC and Cycles updated
+      cpu.PC == initialPC + 3
+      cpu.cycles == initialCycles + 5 # 4 cycles + 1 for page cross
+

@@ -282,6 +282,22 @@ proc opNOP_abs*(cpu: var CPU) =
   cpu.cycles += 4 # NOP abs takes 4 cycles
 
 
+
+
+proc opNOP_absX*(cpu: var CPU) =
+  ## NOP Absolute,X - Opcode 0x1C (unofficial)
+  ## Action: Fetches operand address + X, reads from address, discards value.
+  let result = resolveAddressingMode(cpu, absoluteX)
+  # The read from the effective address happens implicitly within resolveAddressingMode
+  # when calculating the final address.
+  cpu.printOpCode(result.address, &"NOP ${result.address.toHex:04},X")
+
+  # No operation performed with the value read
+  # No flags or registers are affected
+
+  cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + 2 operand bytes = 3)
+  cpu.cycles += 4 + uint16(result.extraCycles) # NOP abs,X takes 4 cycles + 1 if page crossed
+
  
 
 proc opSLO_zp*(cpu: var CPU) =
@@ -748,6 +764,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0xa2] = OpcodeInfo(handler: opLDX, mode: immediate, cycles: 2, mnemonic: "LDX")
   opcodeTable[0x1A] = OpcodeInfo(handler: opNOP_implied_1A, mode: immediate, cycles: 2, mnemonic: "NOP") # Unofficial, Implied mode
   opcodeTable[0x1B] = OpcodeInfo(handler: opSLO_absY, mode: absoluteY, cycles: 7, mnemonic: "SLO") # Unofficial
+  opcodeTable[0x1C] = OpcodeInfo(handler: opNOP_absX, mode: absoluteX, cycles: 4, mnemonic: "NOP") # Unofficial
   opcodeTable[0xa4] = OpcodeInfo(handler: opLDY_zp, mode: zeroPage, cycles: 3, mnemonic: "LDY")
   opcodeTable[0xa5] = OpcodeInfo(handler: opLDA_zp, mode: zeroPage, cycles: 3, mnemonic: "LDA")
   opcodeTable[0xa6] = OpcodeInfo(handler: opLDX_zp, mode: zeroPage, cycles: 3, mnemonic: "LDX")
