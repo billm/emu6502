@@ -248,7 +248,6 @@ proc opANC_imm*(cpu: var CPU) =
 
 
 
-
 proc opORA_abs*(cpu: var CPU) =
   ## ORA Absolute - Opcode 0x0D
   ## Action: A = A | M
@@ -477,29 +476,29 @@ proc opSLO_abs*(cpu: var CPU) =
 proc opSLO_indirectY*(cpu: var CPU) =
   ## SLO (Indirect),Y - Opcode 0x13 (unofficial)
   ## Action: M = M << 1; A = A | M
-  let result = resolveAddressingMode(cpu, indirectY)
+  let result = resolveAddressingMode(cpu, indirectY) # Fetch address first
   let effectiveAddr = result.address
   let originalValue = cpu.memory[effectiveAddr]
   cpu.printOpCode(effectiveAddr, &"SLO (${(cpu.memory[cpu.PC + 1]).toHex:02}),Y @ {effectiveAddr.toHex:04} = {originalValue.toHex:02}")
-
+  
   # 1. ASL on M
   cpu.C = (originalValue and 0x80'u8) != 0 # Set Carry if bit 7 was set
   let shiftedValue = originalValue shl 1
-
+  
   # 2. Write shifted value back to memory
   cpu.memory[effectiveAddr] = shiftedValue
-
+  
   # 3. ORA with Accumulator using the *shifted* value
   cpu.A = cpu.A or shiftedValue
   cpu.setZ(cpu.A) # Z flag based on final A
   cpu.setN(cpu.A) # N flag based on final A
-
+  
   # 4. Update PC and Cycles
   cpu.PC += uint16(result.operandBytes + 1) # Advance PC (opcode + operand byte)
   # Note: SLO (Indirect),Y always takes 8 cycles, regardless of page cross.
   # The extraCycles from resolveAddressingMode are ignored for this specific opcode.
   cpu.cycles += 8
-
+  
 
 proc opASL_zpX*(cpu: var CPU) =
   ## ASL ZeroPage,X - Opcode 0x16
@@ -607,7 +606,6 @@ proc opORA_indirectY*(cpu: var CPU) =
   cpu.cycles += 5 + uint16(result.extraCycles) # ORA (Indirect),Y takes 5 cycles (+1 if page crossed)
 
 
-  opcodeTable[0x10] = OpcodeInfo(handler: opBPL, mode: relative, cycles: 2, mnemonic: "BPL") # Cycles=2 base, +1 if branch taken, +1 more if page crossed
 proc setupOpcodeTable*() =
   for i in 0..255:
     opcodeTable[i].handler = nil
@@ -632,6 +630,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x0D] = OpcodeInfo(handler: opORA_abs, mode: absolute, cycles: 4, mnemonic: "ORA")
   opcodeTable[0x0E] = OpcodeInfo(handler: opASL_abs, mode: absolute, cycles: 6, mnemonic: "ASL")
   opcodeTable[0x0F] = OpcodeInfo(handler: opSLO_abs, mode: absolute, cycles: 6, mnemonic: "SLO") # Unofficial
+  opcodeTable[0x10] = OpcodeInfo(handler: opBPL, mode: relative, cycles: 2, mnemonic: "BPL") # Cycles=2 base, +1 if branch taken, +1 more if page crossed
   opcodeTable[0x11] = OpcodeInfo(handler: opORA_indirectY, mode: indirectY, cycles: 5, mnemonic: "ORA") # Cycles=5 base, +1 if page crossed
   opcodeTable[0x12] = OpcodeInfo(handler: opKIL_12, mode: immediate, cycles: 2, mnemonic: "KIL") # Unofficial
   opcodeTable[0x13] = OpcodeInfo(handler: opSLO_indirectY, mode: indirectY, cycles: 8, mnemonic: "SLO") # Unofficial
@@ -655,5 +654,4 @@ proc setupOpcodeTable*() =
   opcodeTable[0xbd] = OpcodeInfo(handler: opLDA_absX, mode: absoluteX, cycles: 4, mnemonic: "LDA")
   opcodeTable[0xd0] = OpcodeInfo(handler: opBNE, mode: relative, cycles: 2, mnemonic: "BNE")
   opcodeTable[0xe8] = OpcodeInfo(handler: opINX, mode: immediate, cycles: 2, mnemonic: "INX")
-  opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ") 
-
+  opcodeTable[0xf0] = OpcodeInfo(handler: opBEQ, mode: relative, cycles: 2, mnemonic: "BEQ")

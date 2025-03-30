@@ -53,3 +53,23 @@ proc initialize*(cpu: var CPU, mem: Memory, PC: uint16) =
   cpu.memory[5] = 0xad
   cpu.memory[6] = 0xbe
   cpu.memory[7] = 0xef
+
+
+proc step*(cpu: var CPU): bool =
+  ## Executes a single CPU instruction cycle.
+  ## Returns true if execution should continue, false if BRK occurred.
+  let opcode = cpu.memory[cpu.PC]
+  let info = opcodeTable[opcode]
+  let oldPC = cpu.PC # Save PC for detecting BRK or halt conditions
+
+  if info.handler == nil:
+    raise UnimplementedOpcodeError(opcode: opcode, pc: cpu.PC, msg: &"Unimplemented opcode: {opcode.toHex} @ PC: 0x{cpu.PC.toHex}")
+
+  info.handler(cpu)
+  cpu.debug() # Optional: keep debug output per step
+
+  # Check for halt conditions (like KIL or BRK not advancing PC)
+  if cpu.halted or (opcode == 0x00 and oldPC == cpu.PC):
+    return false # Signal to stop execution
+
+  return true # Signal to continue execution

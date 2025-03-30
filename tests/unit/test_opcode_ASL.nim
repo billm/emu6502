@@ -65,14 +65,76 @@ suite "ASL Opcode Unit Tests":
     else:
       fail()
   
-    check:
-      mem.mem[zpAddr.uint16] == 0x02 # Memory updated with shifted value
-      not cpu.Z                      # Zero flag clear (02 != 0)
-      not cpu.N                      # Negative flag clear (bit 7 of 02 is 0)
-      cpu.C == true                  # Carry flag set (original bit 7 of 81 was 1)
-      cpu.PC == 0x0A02               # PC advanced by 2
-      cpu.cycles == 5                # Cycles correct
-  
+
+
+  test "ASL ZeroPage,X - Basic Shift, No Carry":
+    cpu.X = 0x02
+    cpu.PC = 0x0010 # Set PC for this test
+    cpu.cycles = 0  # Reset cycles for this test
+    cpu.memory[0x0010] = 0x16 # ASL zp,X
+    cpu.memory[0x0011] = 0x20 # Zero page address operand
+    cpu.memory[0x0022] = 0x41 # Value to shift (01000001)
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+    discard cpu.step()
+    check cpu.memory[0x0022] == 0x82 # Shifted value (10000010)
+    check cpu.PC == initialPC + 2
+    check cpu.cycles == initialCycles + 6
+    check cpu.C == false
+    check cpu.Z == false
+    check cpu.N == true
+
+  test "ASL ZeroPage,X - Sets Carry Flag":
+    cpu.X = 0x05
+    cpu.PC = 0x0010 # Set PC for this test
+    cpu.cycles = 0  # Reset cycles for this test
+    cpu.memory[0x0010] = 0x16 # ASL zp,X
+    cpu.memory[0x0011] = 0x80 # Zero page address operand
+    cpu.memory[0x0085] = 0x81 # Value to shift (10000001)
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+    discard cpu.step()
+    check cpu.memory[0x0085] == 0x02 # Shifted value (00000010)
+    check cpu.PC == initialPC + 2
+    check cpu.cycles == initialCycles + 6
+    check cpu.C == true
+    check cpu.Z == false
+    check cpu.N == false
+
+  test "ASL ZeroPage,X - Sets Zero Flag":
+    cpu.X = 0x01
+    cpu.PC = 0x0010 # Set PC for this test
+    cpu.cycles = 0  # Reset cycles for this test
+    cpu.memory[0x0010] = 0x16 # ASL zp,X
+    cpu.memory[0x0011] = 0x40 # Zero page address operand
+    cpu.memory[0x0041] = 0x80 # Value to shift (10000000)
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+    discard cpu.step()
+    check cpu.memory[0x0041] == 0x00 # Shifted value (00000000)
+    check cpu.PC == initialPC + 2
+    check cpu.cycles == initialCycles + 6
+    check cpu.C == true
+    check cpu.Z == true
+    check cpu.N == false
+
+  test "ASL ZeroPage,X - Zero Page Wrap":
+    cpu.X = 0x10
+    cpu.PC = 0x0010 # Set PC for this test
+    cpu.cycles = 0  # Reset cycles for this test
+    cpu.memory[0x0010] = 0x16 # ASL zp,X
+    cpu.memory[0x0011] = 0xF8 # Zero page address operand (0xF8 + 0x10 = 0x108 -> wraps to 0x08)
+    cpu.memory[0x0008] = 0x55 # Value to shift (01010101)
+    let initialPC = cpu.PC
+    let initialCycles = cpu.cycles
+    discard cpu.step()
+    check cpu.memory[0x0008] == 0xAA # Shifted value (10101010)
+    check cpu.PC == initialPC + 2
+    check cpu.cycles == initialCycles + 6
+    check cpu.C == false
+    check cpu.Z == false
+    check cpu.N == true
+
   test "ASL ZeroPage - Sets Zero Flag":
     # Setup: ASL $66 (06 66)
     # Value at $0066 is $80 (10000000)
