@@ -741,3 +741,232 @@ suite "SLO Opcode Unit Tests":
       cpu.C == true             # Carry flag set
       cpu.PC == 0x0D02          # PC advanced by 2
       cpu.cycles == 8           # Cycles correct
+
+  # --- Tests for Opcode 0x17: SLO ZeroPage,X ---
+
+  test "SLO ZeroPage,X - Basic Operation, No Carry":
+    # Setup: SLO $40,X where X=0x02 (17 40)
+    # Effective address = $40 + $02 = $42
+    # Value M at $0042 is $41 (01000001)
+    # Initial A = $12 (00010010)
+    #
+    # Action:
+    # 1. ASL on M: $41 << 1 = $82 (10000010). Carry = 0.
+    # 2. Write $82 back to $0042.
+    # 3. ORA: A = A | shifted M = $12 | $82 = $92 (10010010)
+    #
+    # Expected State:
+    # A = $92
+    # Memory[$0042] = $82
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 2
+    # Cycles = Cycles + 6
+    cpu.PC = 0x0E00
+    cpu.X = 0x02
+    cpu.A = 0x12
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially to ensure it gets cleared
+    cpu.cycles = 0
+    let zpBaseAddr = 0x40'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF
+
+    mem.mem[cpu.PC] = 0x17     # SLO ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x41 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x92             # Accumulator updated (12 | 82 = 92)
+      mem.mem[effectiveAddr.uint16] == 0x82   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (92 != 0)
+      cpu.N == true             # Negative flag set (bit 7 of 92 is 1)
+      not cpu.C                 # Carry flag clear (original bit 7 of 41 was 0)
+      cpu.PC == 0x0E02          # PC advanced by 2
+      cpu.cycles == 6           # SLO ZeroPage,X takes 6 cycles
+
+  test "SLO ZeroPage,X - Sets Carry Flag":
+    # Setup: SLO $50,X where X=0x05 (17 50)
+    # Effective address = $50 + $05 = $55
+    # Value M at $0055 is $81 (10000001)
+    # Initial A = $0F (00001111)
+    #
+    # Action:
+    # 1. ASL on M: $81 << 1 = $02 (00000010). Carry = 1.
+    # 2. Write $02 back to $0055.
+    # 3. ORA: A = A | shifted M = $0F | $02 = $0F (00001111)
+    #
+    # Expected State:
+    # A = $0F
+    # Memory[$0055] = $02
+    # Flags: N=0, Z=0, C=1
+    # PC = PC + 2
+    # Cycles = Cycles + 6
+    cpu.PC = 0x0F00
+    cpu.X = 0x05
+    cpu.A = 0x0F
+    cpu.setFlags(0x20'u8) # Clear C initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0x50'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF
+
+    mem.mem[cpu.PC] = 0x17     # SLO ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x81 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x0F             # Accumulator updated (0F | 02 = 0F)
+      mem.mem[effectiveAddr.uint16] == 0x02   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear (0F != 0)
+      not cpu.N                 # Negative flag clear (bit 7 of 0F is 0)
+      cpu.C == true             # Carry flag set (original bit 7 of 81 was 1)
+      cpu.PC == 0x0F02          # PC advanced by 2
+      cpu.cycles == 6           # Cycles correct
+
+  test "SLO ZeroPage,X - Sets Zero Flag":
+    # Setup: SLO $60,X where X=0x08 (17 60)
+    # Effective address = $60 + $08 = $68
+    # Value M at $0068 is $80 (10000000) -> ASL -> $00, C=1
+    # Initial A = $00
+    #
+    # Action:
+    # 1. ASL on M: $80 << 1 = $00. Carry = 1.
+    # 2. Write $00 back to $0068.
+    # 3. ORA: A = A | shifted M = $00 | $00 = $00
+    #
+    # Expected State:
+    # A = $00
+    # Memory[$0068] = $00
+    # Flags: N=0, Z=1, C=1
+    # PC = PC + 2
+    # Cycles = Cycles + 6
+    cpu.PC = 0x1000
+    cpu.X = 0x08
+    cpu.A = 0x00
+    cpu.setFlags(0x20'u8 or 0x80'u8) # Set N initially, clear C
+    cpu.cycles = 0
+    let zpBaseAddr = 0x60'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF
+
+    mem.mem[cpu.PC] = 0x17     # SLO ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x80 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x00             # Accumulator is zero
+      mem.mem[effectiveAddr.uint16] == 0x00   # Memory updated with shifted value
+      cpu.Z == true             # Zero flag set
+      not cpu.N                 # Negative flag clear
+      cpu.C == true             # Carry flag set (original bit 7 of 80 was 1)
+      cpu.PC == 0x1002          # PC advanced by 2
+      cpu.cycles == 6           # Cycles correct
+
+  test "SLO ZeroPage,X - Sets Negative Flag":
+    # Setup: SLO $70,X where X=0x0A (17 70)
+    # Effective address = $70 + $0A = $7A
+    # Value M at $007A is $40 (01000000) -> ASL -> $80, C=0
+    # Initial A = $01
+    #
+    # Action:
+    # 1. ASL on M: $40 << 1 = $80. Carry = 0.
+    # 2. Write $80 back to $007A.
+    # 3. ORA: A = A | shifted M = $01 | $80 = $81
+    #
+    # Expected State:
+    # A = $81
+    # Memory[$007A] = $80
+    # Flags: N=1, Z=0, C=0
+    # PC = PC + 2
+    # Cycles = Cycles + 6
+    cpu.PC = 0x1100
+    cpu.X = 0x0A
+    cpu.A = 0x01
+    cpu.setFlags(0x20'u8 or 0x01'u8) # Set C initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0x70'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF
+
+    mem.mem[cpu.PC] = 0x17     # SLO ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0x40 # Initial value M
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      cpu.A == 0x81             # Accumulator updated (01 | 80 = 81)
+      mem.mem[effectiveAddr.uint16] == 0x80   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      cpu.N == true             # Negative flag set
+      not cpu.C                 # Carry flag clear
+      cpu.PC == 0x1102          # PC advanced by 2
+      cpu.cycles == 6           # Cycles correct
+
+  test "SLO ZeroPage,X - Zero Page Wrap-around":
+    # Setup: SLO $F0,X where X=$15 (17 F0)
+    # Effective address = $F0 + $15 = $105 -> wraps to $05
+    # Value M at $0005 is $C0 (11000000)
+    # Initial A = $03 (00000011)
+    #
+    # Action:
+    # 1. ASL on M: $C0 << 1 = $80 (10000000). Carry = 1.
+    # 2. Write $80 back to $0005.
+    # 3. ORA: A = A | shifted M = $03 | $80 = $83 (10000011)
+    #
+    # Expected State:
+    # A = $83
+    # Memory[$0005] = $80
+    # Flags: N=1, Z=0, C=1
+    # PC = PC + 2
+    # Cycles = Cycles + 6
+    cpu.PC = 0x1200
+    cpu.X = 0x15
+    cpu.A = 0x03
+    cpu.setFlags(0x20'u8) # Clear flags initially
+    cpu.cycles = 0
+    let zpBaseAddr = 0xF0'u8
+    let effectiveAddr = (zpBaseAddr + cpu.X) and 0xFF # Should be 0x05
+
+    mem.mem[cpu.PC] = 0x17     # SLO ZeroPage,X
+    mem.mem[cpu.PC + 1] = zpBaseAddr
+    mem.mem[effectiveAddr.uint16] = 0xC0 # Initial value M at $0005
+
+    # Execute (will fail until implemented)
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu)
+    else:
+      fail()
+
+    check:
+      effectiveAddr == 0x05     # Verify wrap-around calculation
+      cpu.A == 0x83             # Accumulator updated (03 | 80 = 83)
+      mem.mem[effectiveAddr.uint16] == 0x80   # Memory updated with shifted value
+      not cpu.Z                 # Zero flag clear
+      cpu.N == true             # Negative flag set
+      cpu.C == true             # Carry flag set
+      cpu.PC == 0x1202          # PC advanced by 2
+      cpu.cycles == 6           # Cycles correct
+
