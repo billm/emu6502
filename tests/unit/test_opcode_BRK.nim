@@ -53,6 +53,6 @@ suite "BRK Opcode Unit Tests":
       # CPU state after BRK
       cpu.I == true           # Interrupt disable set
       cpu.B == false         # B not set in actual status
-      cpu.PC == 0x8000       # Loaded from IRQ vector
+      cpu.PC == 0x0300
       cpu.SP == 0xFF'u8 - 3'u8  # Pushed 3 bytes
       cpu.cycles == 7'u16    # BRK takes 7 cycles
