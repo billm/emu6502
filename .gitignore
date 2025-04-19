@@ -3,11 +3,13 @@ nimcache/
 nimblecache/
 htmldocs/
 .vscode
+*.swp
 
 # Test binaries (but keep .nim source files)
 tests/unit/test_cpu
 tests/unit/test_memory
 tests/unit/test_opcodes
+tests/unit/test_opcode_???
 tests/integration/test_programs
 
 # Roo files
