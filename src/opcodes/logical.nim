@@ -1,12 +1,11 @@
 import ../types
 import ../addressing
-import ../flags
 import ../opcode_utils
 import strutils
 
 proc opORA*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic ORA handler.
-  let instruction = cpu.memory.mem[cpu.PC]
+  # let instruction = cpu.memory.mem[cpu.PC] # instruction is not used
   # let info = opcodeTable[instruction] # info is now passed as a parameter
   let result = resolveAddressingMode(cpu, info.mode)
 
@@ -25,7 +24,7 @@ proc opORA*(cpu: var CPU, info: OpcodeInfo) =
 
 proc opAND*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic AND handler.
-  let instruction = cpu.memory.mem[cpu.PC]
+  # let instruction = cpu.memory.mem[cpu.PC] # instruction is not used
   # let info = opcodeTable[instruction] # info is now passed as a parameter
   let result = resolveAddressingMode(cpu, info.mode)
 
@@ -56,7 +55,7 @@ proc opEOR*(cpu: var CPU, info: OpcodeInfo) =
 proc opANC*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic ANC handler (unofficial).
   ## Action: A = A & Immediate; C = N
-  let instruction = cpu.memory.mem[cpu.PC]
+  # let instruction = cpu.memory.mem[cpu.PC] # instruction is not used
   # let info = opcodeTable[instruction] # info is now passed as a parameter # Assumes mode is Immediate
 
   # ANC only uses Immediate mode

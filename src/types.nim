@@ -29,10 +29,9 @@ type
 
   OperatorMode* = enum
     immediate, zeroPage, zeroPageX, zeroPageY, absolute, absoluteX, absoluteY,
-    implied, 
-    accumulator, 
+    implied,
+    accumulator,
     indirect, indirectX, indirectY, relative
-
 
   OpcodeHandler* = proc(cpu: var CPU, info: OpcodeInfo)
 
@@ -45,3 +44,4 @@ type
     mode*: OperatorMode
     mnemonic*: string # For debugging/disassembly
 
+export OperatorMode # Export only OperatorMode here

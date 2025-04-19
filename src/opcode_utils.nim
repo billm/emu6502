@@ -2,10 +2,6 @@ import types
 import addressing
 import flags
 import memory
-import stack
-import strformat
-import strutils
-import utils
 
 proc updateZNFlags*(cpu: var CPU, value: uint8) =
   ## Updates the Zero and Negative flags based on the provided value.

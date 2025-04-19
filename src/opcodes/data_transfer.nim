@@ -1,8 +1,7 @@
-import ../memory, ../types, ../addressing, ../flags, ../opcode_utils
+import ../memory, ../types, ../addressing, ../opcode_utils
 proc opLDA*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic LDA handler (Load Accumulator).
   ## Action: A = M
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   let result = addressing.resolveAddressingMode(cpu, info.mode)
@@ -15,7 +14,6 @@ proc opLDA*(cpu: var CPU, info: OpcodeInfo) =
 proc opLDX*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic LDX handler (Load Index Register X).
   ## Action: X = M
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   let result = addressing.resolveAddressingMode(cpu, info.mode)
@@ -28,7 +26,6 @@ proc opLDX*(cpu: var CPU, info: OpcodeInfo) =
 proc opLDY*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic LDY handler (Load Index Register Y).
   ## Action: Y = M
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   let result = addressing.resolveAddressingMode(cpu, info.mode)
@@ -41,7 +38,6 @@ proc opLDY*(cpu: var CPU, info: OpcodeInfo) =
 proc opSTA*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic STA handler (Store Accumulator).
   ## Action: M = A
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   let result = addressing.resolveAddressingMode(cpu, info.mode)
@@ -56,7 +52,6 @@ proc opSTA*(cpu: var CPU, info: OpcodeInfo) =
 proc opSTX*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic STX handler (Store Index Register X).
   ## Action: M = X
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   let result = addressing.resolveAddressingMode(cpu, info.mode)
@@ -71,7 +66,6 @@ proc opSTX*(cpu: var CPU, info: OpcodeInfo) =
 proc opSTY*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic STY handler (Store Index Register Y).
   ## Action: M = Y
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   let result = addressing.resolveAddressingMode(cpu, info.mode)
@@ -86,7 +80,6 @@ proc opSTY*(cpu: var CPU, info: OpcodeInfo) =
 proc opTAX*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic TAX handler (Transfer Accumulator to X).
   ## Action: X = A
-  let instruction = cpu.memory.mem[cpu.PC]
   # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   cpu.X = cpu.A

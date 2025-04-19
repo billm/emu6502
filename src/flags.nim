@@ -30,7 +30,7 @@ proc flags*(cpu: CPU): uint8 =
     (cpu.N.uint8 shl 7)
 
 # Set each processor flag boolean based on the bits set in cpu.flags
-proc setFlags*(cpu: var CPU, flags: uint8) =
+proc setFlags*(cpu: var CPU, flags: uint8) = # Added * to export
   cpu.C = flags.bit(0)
   cpu.Z = flags.bit(1)
   cpu.I = flags.bit(2)
@@ -38,4 +38,4 @@ proc setFlags*(cpu: var CPU, flags: uint8) =
   cpu.B = flags.bit(4)
   cpu.U = flags.bit(5)
   cpu.V = flags.bit(6)
-  cpu.N = flags.bit(7) 
+  cpu.N = flags.bit(7)

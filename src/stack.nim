@@ -1,6 +1,5 @@
 import types
 import memory
-import strutils
 
 # Push a byte onto the stack
 proc push*(cpu: var CPU, val: uint8) =

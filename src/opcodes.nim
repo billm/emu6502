@@ -9,6 +9,7 @@ import stack
 import memory
 import flags
 import opcode_utils
+import opcodes/shift_rotate
 
 
 export types.CPU
@@ -29,15 +30,6 @@ var opcodeTable*: array[256, OpcodeInfo]
 
 # Generic Opcode Handlers 
 
-proc opLSR*(cpu: var CPU, info: OpcodeInfo) =
-  ## Stub for LSR (Logical Shift Right) - Not Implemented
-  let instruction = cpu.memory[cpu.PC]
-  let err = UnimplementedOpcodeError(
-    msg: "Opcode LSR ($" & toHex(instruction, 2) & ") not implemented",
-    opcode: instruction,
-    pc: cpu.PC
-  )
-  raise err
 
 
 
@@ -83,32 +75,6 @@ proc opADC*(cpu: var CPU, info: OpcodeInfo) =
 
 
 
-proc opASL(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic ASL handler (Arithmetic Shift Left).
-  ## Action: M = M << 1 or A = A << 1
-  let instruction = cpu.memory[cpu.PC]
-  # let info = opcodeTable[instruction] # info is now passed as a parameter
-
-  if info.mode == accumulator:
-    # Accumulator Mode
-    let originalValue = cpu.A
-    let shiftedValue = opcode_utils.performASL(cpu, originalValue)
-    cpu.A = shiftedValue
-    opcode_utils.updateZNFlags(cpu, shiftedValue)
-
-    cpu.PC += 1 # Accumulator mode is 1 byte
-    cpu.cycles += uint16(info.cycles) # Accumulator mode always has fixed cycles for ASL (2 cycles)
-
-  else:
-    # Memory Modes
-    let result = resolveAddressingMode(cpu, info.mode)
-    let originalValue = cpu.memory[result.address]
-    let shiftedValue = opcode_utils.performASL(cpu, originalValue)
-
-    cpu.memory[result.address] = shiftedValue
-    opcode_utils.updateZNFlags(cpu, shiftedValue)
-
-    opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opBIT(cpu: var CPU, info: OpcodeInfo) =
@@ -409,26 +375,8 @@ proc opPHP(cpu: var CPU, info: OpcodeInfo) =
   opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
-proc opROL*(cpu: var CPU, info: OpcodeInfo) =
-  ## Stub for ROL (Rotate Left) - Not Implemented
-  let instruction = cpu.memory[cpu.PC]
-  let err = UnimplementedOpcodeError(
-    msg: "Opcode ROL ($" & toHex(instruction, 2) & ") not implemented",
-    opcode: instruction,
-    pc: cpu.PC
-  )
-  raise err
 
 
-proc opROR*(cpu: var CPU, info: OpcodeInfo) =
-  ## Stub for ROR (Rotate Right) - Not Implemented
-  let instruction = cpu.memory[cpu.PC]
-  let err = UnimplementedOpcodeError(
-    msg: "Opcode ROR ($" & toHex(instruction, 2) & ") not implemented",
-    opcode: instruction,
-    pc: cpu.PC
-  )
-  raise err
 
 
 proc opRTS(cpu: var CPU, info: OpcodeInfo) =
@@ -922,75 +870,75 @@ proc setupOpcodeTable*() =
   opcodeTable[0x00] = OpcodeInfo(fixedCycles: true, handler: opBRK, cycles: 7, mode: implied, mnemonic: "BRK")
   opcodeTable[0x01] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 6, mode: indirectX, mnemonic: "ORA")
   opcodeTable[0x05] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 3, mode: zeroPage, mnemonic: "ORA")
-  opcodeTable[0x06] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 5, mode: zeroPage, mnemonic: "ASL")
+  opcodeTable[0x06] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opASL, cycles: 5, mode: zeroPage, mnemonic: "ASL")
   opcodeTable[0x08] = OpcodeInfo(fixedCycles: true, handler: opPHP, cycles: 3, mode: implied, mnemonic: "PHP")
   opcodeTable[0x09] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 2, mode: immediate, mnemonic: "ORA")
-  opcodeTable[0x0A] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 2, mode: accumulator, mnemonic: "ASL")
+  opcodeTable[0x0A] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opASL, cycles: 2, mode: accumulator, mnemonic: "ASL")
   opcodeTable[0x0D] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 4, mode: absolute, mnemonic: "ORA")
-  opcodeTable[0x0E] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 6, mode: absolute, mnemonic: "ASL")
+  opcodeTable[0x0E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opASL, cycles: 6, mode: absolute, mnemonic: "ASL")
   opcodeTable[0x10] = OpcodeInfo(fixedCycles: false, handler: opBPL, cycles: 2, mode: relative, mnemonic: "BPL") # 2++
   opcodeTable[0x11] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opORA, cycles: 5, mode: indirectY, mnemonic: "ORA") # 5+
   opcodeTable[0x15] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 4, mode: zeroPageX, mnemonic: "ORA")
-  opcodeTable[0x16] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 6, mode: zeroPageX, mnemonic: "ASL")
+  opcodeTable[0x16] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opASL, cycles: 6, mode: zeroPageX, mnemonic: "ASL")
   opcodeTable[0x18] = OpcodeInfo(fixedCycles: true, handler: opCLC, cycles: 2, mode: implied, mnemonic: "CLC")
   opcodeTable[0x19] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opORA, cycles: 4, mode: absoluteY, mnemonic: "ORA") # 4+
   opcodeTable[0x1D] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opORA, cycles: 4, mode: absoluteX, mnemonic: "ORA") # 4+
-  opcodeTable[0x1E] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 7, mode: absoluteX, mnemonic: "ASL")
+  opcodeTable[0x1E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opASL, cycles: 7, mode: absoluteX, mnemonic: "ASL")
   opcodeTable[0x20] = OpcodeInfo(fixedCycles: true, handler: opJSR, cycles: 6, mode: absolute, mnemonic: "JSR")
   opcodeTable[0x21] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 6, mode: indirectX, mnemonic: "AND")
   opcodeTable[0x24] = OpcodeInfo(fixedCycles: true, handler: opBIT, cycles: 3, mode: zeroPage, mnemonic: "BIT")
   opcodeTable[0x25] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 3, mode: zeroPage, mnemonic: "AND")
-  opcodeTable[0x26] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 5, mode: zeroPage, mnemonic: "ROL")
+  opcodeTable[0x26] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROL, cycles: 5, mode: zeroPage, mnemonic: "ROL")
   opcodeTable[0x28] = OpcodeInfo(fixedCycles: true, handler: opPLP, cycles: 4, mode: implied, mnemonic: "PLP")
   opcodeTable[0x29] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 2, mode: immediate, mnemonic: "AND")
-  opcodeTable[0x2A] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 2, mode: accumulator, mnemonic: "ROL")
+  opcodeTable[0x2A] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROL, cycles: 2, mode: accumulator, mnemonic: "ROL")
   opcodeTable[0x2C] = OpcodeInfo(fixedCycles: true, handler: opBIT, cycles: 4, mode: absolute, mnemonic: "BIT")
   opcodeTable[0x2D] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 4, mode: absolute, mnemonic: "AND")
-  opcodeTable[0x2E] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 6, mode: absolute, mnemonic: "ROL")
+  opcodeTable[0x2E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROL, cycles: 6, mode: absolute, mnemonic: "ROL")
   opcodeTable[0x30] = OpcodeInfo(fixedCycles: false, handler: opBMI, cycles: 2, mode: relative, mnemonic: "BMI") # 2++
   opcodeTable[0x31] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opAND, cycles: 5, mode: indirectY, mnemonic: "AND") # 5+
   opcodeTable[0x35] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 4, mode: zeroPageX, mnemonic: "AND")
-  opcodeTable[0x36] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 6, mode: zeroPageX, mnemonic: "ROL")
+  opcodeTable[0x36] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROL, cycles: 6, mode: zeroPageX, mnemonic: "ROL")
   opcodeTable[0x38] = OpcodeInfo(fixedCycles: true, handler: opSEC, cycles: 2, mode: implied, mnemonic: "SEC")
   opcodeTable[0x39] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opAND, cycles: 4, mode: absoluteY, mnemonic: "AND") # 4+
   opcodeTable[0x3D] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opAND, cycles: 4, mode: absoluteX, mnemonic: "AND") # 4+
-  opcodeTable[0x3E] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 7, mode: absoluteX, mnemonic: "ROL")
+  opcodeTable[0x3E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROL, cycles: 7, mode: absoluteX, mnemonic: "ROL")
   opcodeTable[0x40] = OpcodeInfo(fixedCycles: true, handler: opRTI, cycles: 6, mode: implied, mnemonic: "RTI")
   opcodeTable[0x41] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 6, mode: indirectX, mnemonic: "EOR")
   opcodeTable[0x45] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 3, mode: zeroPage, mnemonic: "EOR")
-  opcodeTable[0x46] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 5, mode: zeroPage, mnemonic: "LSR")
+  opcodeTable[0x46] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opLSR, cycles: 5, mode: zeroPage, mnemonic: "LSR")
   opcodeTable[0x48] = OpcodeInfo(fixedCycles: true, handler: opPHA, cycles: 3, mode: implied, mnemonic: "PHA")
   opcodeTable[0x49] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 2, mode: immediate, mnemonic: "EOR")
-  opcodeTable[0x4A] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 2, mode: accumulator, mnemonic: "LSR")
+  opcodeTable[0x4A] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opLSR, cycles: 2, mode: accumulator, mnemonic: "LSR")
   opcodeTable[0x4C] = OpcodeInfo(fixedCycles: true, handler: opJMP, cycles: 3, mode: absolute, mnemonic: "JMP")
   opcodeTable[0x4D] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 4, mode: absolute, mnemonic: "EOR")
-  opcodeTable[0x4E] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 6, mode: absolute, mnemonic: "LSR")
+  opcodeTable[0x4E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opLSR, cycles: 6, mode: absolute, mnemonic: "LSR")
   opcodeTable[0x50] = OpcodeInfo(fixedCycles: false, handler: opBVC, cycles: 2, mode: relative, mnemonic: "BVC") # 2++
   opcodeTable[0x51] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opEOR, cycles: 5, mode: indirectY, mnemonic: "EOR") # 5+
   opcodeTable[0x55] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 4, mode: zeroPageX, mnemonic: "EOR")
-  opcodeTable[0x56] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 6, mode: zeroPageX, mnemonic: "LSR")
+  opcodeTable[0x56] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opLSR, cycles: 6, mode: zeroPageX, mnemonic: "LSR")
   opcodeTable[0x58] = OpcodeInfo(fixedCycles: true, handler: opCLI, cycles: 2, mode: implied, mnemonic: "CLI")
   opcodeTable[0x59] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opEOR, cycles: 4, mode: absoluteY, mnemonic: "EOR") # 4+
   opcodeTable[0x5D] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opEOR, cycles: 4, mode: absoluteX, mnemonic: "EOR") # 4+
-  opcodeTable[0x5E] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 7, mode: absoluteX, mnemonic: "LSR")
+  opcodeTable[0x5E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opLSR, cycles: 7, mode: absoluteX, mnemonic: "LSR")
   opcodeTable[0x60] = OpcodeInfo(fixedCycles: true, handler: opRTS, cycles: 6, mode: implied, mnemonic: "RTS")
   opcodeTable[0x61] = OpcodeInfo(fixedCycles: true, handler: opADC, cycles: 6, mode: indirectX, mnemonic: "ADC")
   opcodeTable[0x65] = OpcodeInfo(fixedCycles: true, handler: opADC, cycles: 3, mode: zeroPage, mnemonic: "ADC")
-  opcodeTable[0x66] = OpcodeInfo(fixedCycles: true, handler: opROR, cycles: 5, mode: zeroPage, mnemonic: "ROR")
+  opcodeTable[0x66] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROR, cycles: 5, mode: zeroPage, mnemonic: "ROR")
   opcodeTable[0x68] = OpcodeInfo(fixedCycles: true, handler: opPLA, cycles: 4, mode: implied, mnemonic: "PLA")
   opcodeTable[0x69] = OpcodeInfo(fixedCycles: true, handler: opADC, cycles: 2, mode: immediate, mnemonic: "ADC")
-  opcodeTable[0x6A] = OpcodeInfo(fixedCycles: true, handler: opROR, cycles: 2, mode: accumulator, mnemonic: "ROR")
+  opcodeTable[0x6A] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROR, cycles: 2, mode: accumulator, mnemonic: "ROR")
   opcodeTable[0x6C] = OpcodeInfo(fixedCycles: true, handler: opJMP, cycles: 5, mode: indirect, mnemonic: "JMP")
   opcodeTable[0x6D] = OpcodeInfo(fixedCycles: true, handler: opADC, cycles: 4, mode: absolute, mnemonic: "ADC")
-  opcodeTable[0x6E] = OpcodeInfo(fixedCycles: true, handler: opROR, cycles: 6, mode: absolute, mnemonic: "ROR")
+  opcodeTable[0x6E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROR, cycles: 6, mode: absolute, mnemonic: "ROR")
   opcodeTable[0x70] = OpcodeInfo(fixedCycles: false, handler: opBVS, cycles: 2, mode: relative, mnemonic: "BVS") # 2++
   opcodeTable[0x71] = OpcodeInfo(fixedCycles: false, handler: opADC, cycles: 5, mode: indirectY, mnemonic: "ADC") # 5+
   opcodeTable[0x75] = OpcodeInfo(fixedCycles: true, handler: opADC, cycles: 4, mode: zeroPageX, mnemonic: "ADC")
-  opcodeTable[0x76] = OpcodeInfo(fixedCycles: true, handler: opROR, cycles: 6, mode: zeroPageX, mnemonic: "ROR")
+  opcodeTable[0x76] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROR, cycles: 6, mode: zeroPageX, mnemonic: "ROR")
   opcodeTable[0x78] = OpcodeInfo(fixedCycles: true, handler: opSEI, cycles: 2, mode: implied, mnemonic: "SEI")
   opcodeTable[0x79] = OpcodeInfo(fixedCycles: false, handler: opADC, cycles: 4, mode: absoluteY, mnemonic: "ADC") # 4+
   opcodeTable[0x7D] = OpcodeInfo(fixedCycles: false, handler: opADC, cycles: 4, mode: absoluteX, mnemonic: "ADC") # 4+
-  opcodeTable[0x7E] = OpcodeInfo(fixedCycles: true, handler: opROR, cycles: 7, mode: absoluteX, mnemonic: "ROR")
+  opcodeTable[0x7E] = OpcodeInfo(fixedCycles: true, handler: opcodes.shift_rotate.opROR, cycles: 7, mode: absoluteX, mnemonic: "ROR")
   opcodeTable[0x81] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 6, mode: indirectX, mnemonic: "STA")
   opcodeTable[0x84] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTY, cycles: 3, mode: zeroPage, mnemonic: "STY")
   opcodeTable[0x85] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 3, mode: zeroPage, mnemonic: "STA")
