@@ -24,7 +24,7 @@ suite "LDA Opcode Unit Tests":
     
     # Execute just one instruction
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
     
     check:
       cpu.A == 0x42        # Accumulator has value
@@ -39,7 +39,7 @@ suite "LDA Opcode Unit Tests":
     mem.mem[0x301] = 0x00  # Load zero
     
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
     
     check cpu.Z == true    # Zero flag should be set
 
@@ -49,7 +49,7 @@ suite "LDA Opcode Unit Tests":
     mem.mem[0x301] = 0x80  # Load negative value (bit 7 set)
     
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
     
     check:
       cpu.N == true        # Negative flag should be set
@@ -78,7 +78,7 @@ suite "LDA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xAA        # Accumulator updated
@@ -103,7 +103,7 @@ suite "LDA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xBB        # Accumulator updated
@@ -135,7 +135,7 @@ suite "LDA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xCC        # Accumulator updated
@@ -167,7 +167,7 @@ suite "LDA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xDD        # Accumulator updated
@@ -195,7 +195,7 @@ suite "LDA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xEE        # Accumulator updated
@@ -223,7 +223,7 @@ suite "LDA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xFF        # Accumulator updated

@@ -34,7 +34,11 @@ suite "AND Opcode Tests":
     let initialCycles = cpu.cycles
 
     # Execute instruction
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.a == expectedResult
@@ -64,7 +68,11 @@ suite "AND Opcode Tests":
     let expectedResult: byte = 0b00000000
     let initialCycles = cpu.cycles
 
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     check cpu.a == expectedResult
     check cpu.pc == 0x0302
@@ -93,7 +101,11 @@ suite "AND Opcode Tests":
     let expectedResult: byte = 0b00000000
     let initialCycles = cpu.cycles
 
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     check cpu.a == expectedResult
     check cpu.pc == 0x0402
@@ -123,7 +135,11 @@ suite "AND Opcode Tests":
     let expectedResult: byte = 0b10101010
     let initialCycles = cpu.cycles
 
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     check cpu.a == expectedResult
     check cpu.pc == 0x0502
@@ -152,7 +168,11 @@ suite "AND Opcode Tests":
     let initialCycles = cpu.cycles
 
     # Execute instruction
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.a == expectedResult
@@ -178,7 +198,11 @@ suite "AND Opcode Tests":
     let expectedResult: byte = 0b00000000
     let initialCycles = cpu.cycles
 
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     check cpu.a == expectedResult
     check cpu.pc == 0x0702
@@ -203,7 +227,11 @@ suite "AND Opcode Tests":
     let expectedResult: byte = 0b00000000
     let initialCycles = cpu.cycles
 
-    cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     check cpu.a == expectedResult
     check cpu.pc == 0x0802

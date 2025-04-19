@@ -36,7 +36,7 @@ suite "PHP Opcode Unit Tests":
     try:
       let info = opcodeTable[mem.mem[cpu.PC]]
       if info.handler != nil:
-        info.handler(cpu)
+        info.handler(cpu, info)
       else:
         # If handler is nil, the test might expect UnimplementedOpcodeError
         # or simply proceed if the goal is just to add the test structure.

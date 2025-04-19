@@ -44,7 +44,7 @@ suite "NOP Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Fail explicitly if not implemented
 
@@ -89,7 +89,7 @@ suite "NOP Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -132,7 +132,7 @@ suite "NOP Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -176,7 +176,7 @@ suite "NOP Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Fail explicitly if not implemented
 
@@ -223,7 +223,7 @@ suite "NOP Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -267,7 +267,7 @@ suite "NOP Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 

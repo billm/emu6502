@@ -34,7 +34,7 @@ type
     indirect, indirectX, indirectY, relative
 
 
-  OpcodeHandler* = proc(cpu: var CPU)
+  OpcodeHandler* = proc(cpu: var CPU, info: OpcodeInfo)
 
   OpcodeInfo* = object
     # Indicates if the cycle count is fixed and not affected by page crossing penalties.

@@ -32,7 +32,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail if it were.
 
@@ -58,7 +58,7 @@ suite "ORA Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -84,7 +84,7 @@ suite "ORA Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -123,7 +123,7 @@ suite "ORA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xFF        # Accumulator updated (AA | 55 = FF)
@@ -157,7 +157,7 @@ suite "ORA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0xFF        # Accumulator updated (F0 | 0F = FF)
@@ -188,7 +188,7 @@ suite "ORA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0x00        # Accumulator is zero
@@ -219,7 +219,7 @@ suite "ORA Opcode Unit Tests":
 
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
-    info.handler(cpu)
+    info.handler(cpu, info)
 
     check:
       cpu.A == 0x7F        # Accumulator updated (70 | 0F = 7F)
@@ -248,7 +248,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -277,7 +277,7 @@ suite "ORA Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -306,7 +306,7 @@ suite "ORA Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -338,7 +338,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -368,7 +368,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -398,7 +398,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -428,7 +428,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -468,7 +468,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Expect failure
 
@@ -506,7 +506,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Expect failure
 
@@ -544,7 +544,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Expect failure
 
@@ -582,7 +582,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Expect failure
 
@@ -616,7 +616,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard
 
@@ -648,7 +648,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard
 
@@ -680,7 +680,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard
 
@@ -712,7 +712,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard
 
@@ -744,7 +744,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard
 
@@ -781,7 +781,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -815,7 +815,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -849,7 +849,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -883,7 +883,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -917,7 +917,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -954,7 +954,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -988,7 +988,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -1022,7 +1022,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -1056,7 +1056,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 
@@ -1090,7 +1090,7 @@ suite "ORA Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet, checks below will fail
 

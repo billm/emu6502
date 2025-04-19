@@ -24,7 +24,7 @@ proc execute*(cpu: var CPU) =
     if info.handler == nil:
       raise UnimplementedOpcodeError(opcode: opcode, pc: cpu.PC, msg: &"Unimplemented opcode: {opcode.toHex} @ PC: 0x{cpu.PC.toHex}")
     
-    info.handler(cpu)
+    info.handler(cpu, info)
     cpu.debug()
 
     # Exit if we hit BRK (which doesn't update PC in its handler)
@@ -75,7 +75,7 @@ proc step*(cpu: var CPU): bool =
     raise UnimplementedOpcodeError(opcode: opcode, pc: cpu.PC, msg: &"Unimplemented opcode: {opcode.toHex} @ PC: 0x{cpu.PC.toHex}")
   echo &"[DEBUG] BEFORE PC={cpu.PC.toHex(4)} OP={opcode.toHex(2)} A={cpu.A.toHex(2)} X={cpu.X.toHex(2)} Y={cpu.Y.toHex(2)} P={cpu.flags.toHex(2)} SP={cpu.SP.toHex(2)}"
 
-  info.handler(cpu)
+  info.handler(cpu, info)
   echo &"[DEBUG] AFTER  PC={cpu.PC.toHex(4)} OP={opcode.toHex(2)} A={cpu.A.toHex(2)} X={cpu.X.toHex(2)} Y={cpu.Y.toHex(2)} P={cpu.flags.toHex(2)} SP={cpu.SP.toHex(2)}"
   cpu.debug() # Optional: keep debug output per step
 

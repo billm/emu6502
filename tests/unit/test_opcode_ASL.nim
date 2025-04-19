@@ -33,7 +33,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
   
@@ -61,7 +61,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
   
@@ -76,7 +76,11 @@ suite "ASL Opcode Unit Tests":
     cpu.memory[0x0022] = 0x41 # Value to shift (01000001)
     let initialPC = cpu.PC
     let initialCycles = cpu.cycles
-    discard cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
     check cpu.memory[0x0022] == 0x82 # Shifted value (10000010)
     check cpu.PC == initialPC + 2
     check cpu.cycles == initialCycles + 6
@@ -93,7 +97,11 @@ suite "ASL Opcode Unit Tests":
     cpu.memory[0x0085] = 0x81 # Value to shift (10000001)
     let initialPC = cpu.PC
     let initialCycles = cpu.cycles
-    discard cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
     check cpu.memory[0x0085] == 0x02 # Shifted value (00000010)
     check cpu.PC == initialPC + 2
     check cpu.cycles == initialCycles + 6
@@ -110,7 +118,11 @@ suite "ASL Opcode Unit Tests":
     cpu.memory[0x0041] = 0x80 # Value to shift (10000000)
     let initialPC = cpu.PC
     let initialCycles = cpu.cycles
-    discard cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
     check cpu.memory[0x0041] == 0x00 # Shifted value (00000000)
     check cpu.PC == initialPC + 2
     check cpu.cycles == initialCycles + 6
@@ -127,7 +139,11 @@ suite "ASL Opcode Unit Tests":
     cpu.memory[0x0008] = 0x55 # Value to shift (01010101)
     let initialPC = cpu.PC
     let initialCycles = cpu.cycles
-    discard cpu.step()
+    let info = opcodeTable[mem.mem[cpu.PC]]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
     check cpu.memory[0x0008] == 0xAA # Shifted value (10101010)
     check cpu.PC == initialPC + 2
     check cpu.cycles == initialCycles + 6
@@ -151,7 +167,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
   
@@ -179,7 +195,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
   
@@ -210,7 +226,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -238,7 +254,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -266,7 +282,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -294,7 +310,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -322,7 +338,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -356,7 +372,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -388,7 +404,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -420,7 +436,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -452,7 +468,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       discard # Handler not implemented yet.
 
@@ -486,7 +502,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -517,7 +533,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -548,7 +564,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -579,7 +595,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -610,7 +626,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -647,7 +663,7 @@ suite "ASL Opcode Unit Tests":
     # Execute (will fail until implemented)
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail() # Expect failure here
 
@@ -681,7 +697,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -715,7 +731,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -749,7 +765,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 
@@ -784,7 +800,7 @@ suite "ASL Opcode Unit Tests":
     # Execute
     let info = opcodeTable[mem.mem[cpu.PC]]
     if info.handler != nil:
-      info.handler(cpu)
+      info.handler(cpu, info)
     else:
       fail()
 

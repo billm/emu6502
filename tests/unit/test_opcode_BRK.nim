@@ -33,7 +33,7 @@ suite "BRK Opcode Unit Tests":
     
     # Execute BRK 
     let info = opcodeTable[mem.mem[cpu.PC].uint8]
-    info.handler(cpu)
+    info.handler(cpu, info)
     
     # Stack should contain PC+2 (high byte, low byte) and flags with B set
     let finalSP = cpu.SP.uint16 # Should be 0xFC

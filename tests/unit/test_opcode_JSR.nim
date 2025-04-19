@@ -35,7 +35,12 @@ suite "Test Opcode 0x20 - JSR Absolute":
     let expectedCycles: uint64 = initialCycles + 6
 
     # Execute the instruction
-    discard cpu.step() # Execute one instruction
+    let opcode = mem.mem[cpu.PC]
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.PC == expectedPC
@@ -69,7 +74,12 @@ suite "Test Opcode 0x20 - JSR Absolute":
     let initialFlags = cpu.flags() # Use the flags() helper proc
 
     # Execute the instruction
-    discard cpu.step() # Execute one instruction
+    let opcode = mem.mem[cpu.PC]
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.PC == 0xBEEF

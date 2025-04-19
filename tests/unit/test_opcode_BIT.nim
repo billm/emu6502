@@ -26,7 +26,12 @@ suite "BIT Opcode Tests":
     let initialA = cpu.A
 
     # Execute
-    cpu.step(mem)
+    let opcode = mem.read(cpu.PC)
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.PC == initialPC + 2 # PC increments by 2 bytes
@@ -54,7 +59,12 @@ suite "BIT Opcode Tests":
     let initialA = cpu.A
 
     # Execute
-    cpu.step(mem)
+    let opcode = mem.read(cpu.PC)
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.PC == initialPC + 2 # PC increments by 2 bytes
@@ -82,7 +92,12 @@ suite "BIT Opcode Tests":
     let initialA = cpu.A
 
     # Execute
-    cpu.step(mem)
+    let opcode = mem.read(cpu.PC)
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.PC == initialPC + 2 # PC increments by 2 bytes
@@ -110,7 +125,12 @@ suite "BIT Opcode Tests":
     let initialA = cpu.A
 
     # Execute
-    cpu.step(mem)
+    let opcode = mem.read(cpu.PC)
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assertions
     check cpu.PC == initialPC + 2 # PC increments by 2 bytes

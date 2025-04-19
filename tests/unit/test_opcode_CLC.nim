@@ -22,7 +22,12 @@ suite "Opcode 0x18 - CLC (Implied)":
     let initialCycles = cpu.cycles
 
     # Act
-    executeOpcode(cpu, 0x18) # Execute CLC
+    let opcode = cpu.memory[cpu.PC]
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assert
     check cpu.C == false # Carry flag should be cleared
@@ -46,7 +51,12 @@ suite "Opcode 0x18 - CLC (Implied)":
     let initialCycles = cpu.cycles
 
     # Act
-    executeOpcode(cpu, 0x18) # Execute CLC
+    let opcode = cpu.memory[cpu.PC]
+    let info = opcodeTable[opcode]
+    if info.handler != nil:
+      info.handler(cpu, info)
+    else:
+      fail()
 
     # Assert
     check cpu.C == false # Carry flag should remain cleared

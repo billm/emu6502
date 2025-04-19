@@ -1,3 +1,4 @@
+import opcodes/logical
 import types
 import addressing
 import utils # For read16
@@ -27,7 +28,7 @@ var opcodeTable*: array[256, OpcodeInfo]
 
 # Generic Opcode Handlers 
 
-proc opLSR*(cpu: var CPU) =
+proc opLSR*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for LSR (Logical Shift Right) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -38,29 +39,12 @@ proc opLSR*(cpu: var CPU) =
   raise err
 
 
-proc opORA(cpu: var CPU) =
-  ## Generic ORA handler.
-  let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Fetch the value to operate on
-  let value = opcode_utils.fetchOperandValue(cpu, info, result)
-
-  # Perform ORA logic
-  cpu.A = cpu.A or value
-
-  # Update flags
-  opcode_utils.updateZNFlags(cpu, cpu.A)
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opLDA(cpu: var CPU) =
+proc opLDA(cpu: var CPU, info: OpcodeInfo) =
   ## Generic LDA handler.
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
+  # let info = opcodeTable[instruction] # info is now passed as a parameter
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to operate on
@@ -76,11 +60,11 @@ proc opLDA(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opSLO(cpu: var CPU) =
+proc opSLO(cpu: var CPU, info: OpcodeInfo) =
   ## Generic SLO handler (unofficial).
   ## Action: M = M << 1; A = A | M
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
+  # let info = opcodeTable[instruction] # info is now passed as a parameter
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Read original value
@@ -102,7 +86,7 @@ proc opSLO(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opADC*(cpu: var CPU) =
+proc opADC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for ADC (Add with Carry) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -113,30 +97,13 @@ proc opADC*(cpu: var CPU) =
   raise err
 
 
-proc opAND(cpu: var CPU) =
-  ## Generic AND handler.
-  let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Fetch the value to operate on
-  let value = opcode_utils.fetchOperandValue(cpu, info, result)
-
-  # Perform AND logic
-  cpu.A = cpu.A and value
-
-  # Update flags
-  opcode_utils.updateZNFlags(cpu, cpu.A)
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opASL(cpu: var CPU) =
+proc opASL(cpu: var CPU, info: OpcodeInfo) =
   ## Generic ASL handler (Arithmetic Shift Left).
   ## Action: M = M << 1 or A = A << 1
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
+  # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   if info.mode == accumulator:
     # Accumulator Mode
@@ -160,11 +127,11 @@ proc opASL(cpu: var CPU) =
     opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opBIT(cpu: var CPU) =
+proc opBIT(cpu: var CPU, info: OpcodeInfo) =
   ## Generic BIT handler (Bit Test).
   ## Action: A & M, set N, V, Z flags
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction] # Assumes mode is ZeroPage or Absolute
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Assumes mode is ZeroPage or Absolute
 
   let result = resolveAddressingMode(cpu, info.mode)
   let value = opcode_utils.fetchOperandValue(cpu, info, result)
@@ -184,15 +151,15 @@ proc opBIT(cpu: var CPU) =
 
 
 
-proc opBEQ(cpu: var CPU) =
+proc opBEQ(cpu: var CPU, info: OpcodeInfo) =
   ## Generic BEQ handler (Branch if Equal - Z flag set).
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction] # Assumes mode is Relative
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Assumes mode is Relative
   let result = resolveAddressingMode(cpu, info.mode) # Gets relative offset
   opcode_utils.handleBranch(cpu, info, result, cpu.Z)
 
 
-proc opBMI*(cpu: var CPU) =
+proc opBMI*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for BMI (Branch if Minus) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -203,39 +170,17 @@ proc opBMI*(cpu: var CPU) =
   raise err
 
 
-proc opBNE(cpu: var CPU) =
+proc opBNE(cpu: var CPU, info: OpcodeInfo) =
   ## Generic BNE handler (Branch if Not Equal - Z flag clear).
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction] # Assumes mode is Relative
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Assumes mode is Relative
   let result = resolveAddressingMode(cpu, info.mode) # Gets relative offset
   opcode_utils.handleBranch(cpu, info, result, not cpu.Z)
 
 
-proc opANC*(cpu: var CPU) =
-  ## Generic ANC handler (unofficial).
-  ## Action: A = A & Immediate; C = N
-  let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction] # Assumes mode is Immediate
-
-  # ANC only uses Immediate mode
-  # We could add an assertion here: assert info.mode == immediate
-  let result = resolveAddressingMode(cpu, immediate) # Force immediate mode resolution
-  let value = result.value
-
-  # Perform AND logic
-  cpu.A = cpu.A and value
-
-  # Update Z and N flags based on the result in A
-  opcode_utils.updateZNFlags(cpu, cpu.A)
-
-  # Set Carry flag based on the N flag (bit 7 of the result)
-  cpu.C = cpu.N
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opBVC*(cpu: var CPU) =
+proc opBVC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for BVC (Branch if Overflow Clear) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -246,7 +191,7 @@ proc opBVC*(cpu: var CPU) =
   raise err
 
 
-proc opBVS*(cpu: var CPU) =
+proc opBVS*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for BVS (Branch if Overflow Set) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -256,7 +201,7 @@ proc opBVS*(cpu: var CPU) =
   )
   raise err
 
-proc opBPL*(cpu: var CPU) =
+proc opBPL*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for BPL (Branch if Plus - N flag clear) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -268,11 +213,11 @@ proc opBPL*(cpu: var CPU) =
 
 
 
-proc opBRK(cpu: var CPU) =
+proc opBRK(cpu: var CPU, info: OpcodeInfo) =
   ## Generic BRK handler (Force Break).
   ## Action: Push PC+2, Push P (with B=1), Set I=1, PC = ($FFFE)
   let instruction = cpu.memory[cpu.PC] # Fetch instruction (though it's always 0x00 for BRK)
-  let info = opcodeTable[instruction] # Get info (mainly for cycles)
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Get info (mainly for cycles)
 
   # 1. Increment PC (BRK is 1 byte, but interrupt pushes PC+2)
   #    Incrementing by 1 here simulates fetching the 'padding' byte.
@@ -312,11 +257,11 @@ proc opBRK(cpu: var CPU) =
   cpu.cycles += uint16(info.cycles) # Use cycles from table (should be 7)
 
 
-proc opCLC(cpu: var CPU) =
+proc opCLC(cpu: var CPU, info: OpcodeInfo) =
   ## Generic CLC handler (Clear Carry Flag).
   ## Action: C = 0
   let instruction = cpu.memory[cpu.PC] # Fetch instruction (though it's always 0x18 for CLC)
-  let info = opcodeTable[instruction] # Get info (mainly for cycles)
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Get info (mainly for cycles)
 
   # Perform CLC logic
   cpu.C = false
@@ -324,7 +269,7 @@ proc opCLC(cpu: var CPU) =
   # Update Program Counter and CPU cycles
   opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
-proc opCLI*(cpu: var CPU) =
+proc opCLI*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for CLI (Clear Interrupt Disable) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -339,22 +284,13 @@ proc opCLI*(cpu: var CPU) =
   # Update CPU cycles (CLC always takes 2 cycles)
 
 
-proc opEOR*(cpu: var CPU) =
-  ## Stub for EOR (Exclusive OR) - Not Implemented
-  let instruction = cpu.memory[cpu.PC]
-  let err = UnimplementedOpcodeError(
-    msg: "Opcode EOR ($" & toHex(instruction, 2) & ") not implemented",
-    opcode: instruction,
-    pc: cpu.PC
-  )
-  raise err
 
 
-proc opINX(cpu: var CPU) =
+proc opINX(cpu: var CPU, info: OpcodeInfo) =
   ## Generic INX handler (Increment X Register).
   ## Action: X = X + 1
   let instruction = cpu.memory[cpu.PC] # Fetch instruction (e.g., 0xE8)
-  let info = opcodeTable[instruction] # Get info (mainly for cycles)
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Get info (mainly for cycles)
 
   # Perform INX logic
   cpu.X = cpu.X + 1 # Increment X with wraparound (standard '+' wraps for uint8)
@@ -366,7 +302,7 @@ proc opINX(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
-proc opJMP*(cpu: var CPU) =
+proc opJMP*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for JMP (Jump) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -377,11 +313,11 @@ proc opJMP*(cpu: var CPU) =
   raise err
 
 
-proc opJSR(cpu: var CPU) =
+proc opJSR(cpu: var CPU, info: OpcodeInfo) =
   ## Generic JSR handler (Jump to Subroutine).
   ## Action: Push PC+2, PC = Address
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction] # Get info (mode=Absolute, cycles=6)
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Get info (mode=Absolute, cycles=6)
   let result = resolveAddressingMode(cpu, info.mode) # Resolve Absolute address
 
   # Calculate the return address (address of the instruction *after* JSR)
@@ -401,17 +337,17 @@ proc opJSR(cpu: var CPU) =
 
 
 
-proc opKIL*(cpu: var CPU) =
+proc opKIL*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic KIL handler (unofficial).
   ## Action: Halt the CPU.
   cpu.halted = true
   # No PC or cycle update needed as the CPU stops.
 
 
-proc opLDX(cpu: var CPU) =
+proc opLDX(cpu: var CPU, info: OpcodeInfo) =
   ## Generic LDX handler (Load X Register).
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
+  # let info = opcodeTable[instruction] # info is now passed as a parameter
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to load
@@ -427,10 +363,10 @@ proc opLDX(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opLDY(cpu: var CPU) =
+proc opLDY(cpu: var CPU, info: OpcodeInfo) =
   ## Generic LDY handler (Load Y Register).
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
+  # let info = opcodeTable[instruction] # info is now passed as a parameter
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to load
@@ -446,12 +382,12 @@ proc opLDY(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opNOP*(cpu: var CPU) =
+proc opNOP*(cpu: var CPU, info: OpcodeInfo) =
   ## Generic NOP handler (No Operation).
   ## Action: Does nothing except advance PC and consume cycles.
   ## Handles official and unofficial NOPs with varying lengths and cycle counts.
   let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
+  # let info = opcodeTable[instruction] # info is now passed as a parameter
 
   # Resolve addressing mode to determine operand bytes and potential extra cycles,
   # even if the operand value/address isn't used. Some unofficial NOPs
@@ -464,7 +400,7 @@ proc opNOP*(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opPLP*(cpu: var CPU) =
+proc opPLP*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for PLP (Pull Processor Status from Stack) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -475,7 +411,7 @@ proc opPLP*(cpu: var CPU) =
   raise err
 
 
-proc opPLA*(cpu: var CPU) =
+proc opPLA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for PLA (Pull Accumulator) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -486,7 +422,7 @@ proc opPLA*(cpu: var CPU) =
   raise err
 
 
-proc opPHA*(cpu: var CPU) =
+proc opPHA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for PHA (Push Accumulator) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -497,11 +433,11 @@ proc opPHA*(cpu: var CPU) =
   raise err
 
 
-proc opPHP(cpu: var CPU) =
+proc opPHP(cpu: var CPU, info: OpcodeInfo) =
   ## Generic PHP handler (Push Processor Status on Stack).
   ## Action: Push P (with B=1, U=1)
   let instruction = cpu.memory[cpu.PC] # Fetch instruction (e.g., 0x08)
-  let info = opcodeTable[instruction] # Get info (mode=Implied, cycles=3)
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Get info (mode=Implied, cycles=3)
 
   # Get current status byte
   var statusToPush: uint8 = 0
@@ -523,7 +459,7 @@ proc opPHP(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
-proc opROL*(cpu: var CPU) =
+proc opROL*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for ROL (Rotate Left) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -534,7 +470,7 @@ proc opROL*(cpu: var CPU) =
   raise err
 
 
-proc opROR*(cpu: var CPU) =
+proc opROR*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for ROR (Rotate Right) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -545,11 +481,11 @@ proc opROR*(cpu: var CPU) =
   raise err
 
 
-proc opRTS(cpu: var CPU) =
+proc opRTS(cpu: var CPU, info: OpcodeInfo) =
   ## Generic RTS handler (Return from Subroutine).
   ## Action: Pull PC from stack, PC = Pulled PC + 1
   let instruction = cpu.memory[cpu.PC] # Fetch instruction (always 0x60 for RTS)
-  let info = opcodeTable[instruction] # Get info (mode=Implied, cycles=6)
+  # let info = opcodeTable[instruction] # info is now passed as a parameter # Get info (mode=Implied, cycles=6)
 
   # Pull the return address (minus 1) from the stack
   # Stack order: high byte pushed first by JSR, so pull low byte first
@@ -564,7 +500,7 @@ proc opRTS(cpu: var CPU) =
   cpu.cycles += uint16(info.cycles) # Use cycles from table (should be 6)
 
 
-proc opRTI*(cpu: var CPU) =
+proc opRTI*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for RTI (Return from Interrupt) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -575,7 +511,7 @@ proc opRTI*(cpu: var CPU) =
   raise err
 
 
-proc opSEC*(cpu: var CPU) =
+proc opSEC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SEC (Set Carry Flag) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -586,7 +522,7 @@ proc opSEC*(cpu: var CPU) =
   raise err
 
 
-proc opSEI*(cpu: var CPU) =
+proc opSEI*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SEI (Set Interrupt Disable) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -597,7 +533,7 @@ proc opSEI*(cpu: var CPU) =
   raise err
 
 
-proc opSTA(cpu: var CPU) =
+proc opSTA(cpu: var CPU, info: OpcodeInfo) =
   ## Generic STA handler (Store Accumulator in Memory).
   ## Action: M = A
   let instruction = cpu.memory[cpu.PC]
@@ -612,7 +548,7 @@ proc opSTA(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opSTX(cpu: var CPU) =
+proc opSTX(cpu: var CPU, info: OpcodeInfo) =
   ## Generic STX handler (Store X Register in Memory).
   ## Action: M = X
   let instruction = cpu.memory[cpu.PC]
@@ -627,7 +563,7 @@ proc opSTX(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opSTY(cpu: var CPU) =
+proc opSTY(cpu: var CPU, info: OpcodeInfo) =
   ## Generic STY handler (Store Y Register in Memory).
   ## Action: M = Y
   let instruction = cpu.memory[cpu.PC]
@@ -652,20 +588,20 @@ proc opSTY(cpu: var CPU) =
 # --- End Placeholder ---
 
 # --- Start of Old Specific Handlers (To be removed in Step 5) ---
-# proc opORA_indirectX*(cpu: var CPU) = ...
-# proc opSLO_indirectX*(cpu: var CPU) = ...
-# proc opORA_zp*(cpu: var CPU) = ...
-# proc opASL_zp*(cpu: var CPU) = ...
-# proc opBIT_24*(cpu: var CPU) = ...
-# proc opAND_25*(cpu: var CPU) = ...
-# proc opPHP*(cpu: var CPU) = ...
-# proc opORA_imm*(cpu: var CPU) = ...
-# proc opASL_acc*(cpu: var CPU) = ...
-# proc opANC_imm*(cpu: var CPU) = ...
-# proc opORA_abs*(cpu: var CPU) = ...
-# proc opNOP_abs*(cpu: var CPU) = ...
-# proc opNOP_absX*(cpu: var CPU) = ...
-# proc opSLO_zp*(cpu: var CPU) = ...
+# proc opORA_indirectX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_indirectX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opORA_zp*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opASL_zp*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opBIT_24*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opAND_25*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opPHP*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opORA_imm*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opASL_acc*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opANC_imm*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opORA_abs*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opNOP_abs*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opNOP_absX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_zp*(cpu: var CPU, info: OpcodeInfo) = ...
 # proc opLDX(cpu: var CPU) = ... # Example, might be generic already
 # proc opLDY_zp(cpu: var CPU) = ...
 # proc opLDA_zp(cpu: var CPU) = ...
@@ -677,28 +613,28 @@ proc opSTY(cpu: var CPU) =
 # proc opINX(cpu: var CPU) = ... # Example, might be generic already
 # proc opBEQ(cpu: var CPU) = ... # Example, might be generic already
 # proc opKIL(cpu: var CPU) = ... # Example, might be generic already
-# proc opASL_abs*(cpu: var CPU) = ...
-# proc opSLO_abs*(cpu: var CPU) = ...
-# proc opSLO_indirectY*(cpu: var CPU) = ...
-# proc opSLO_zpX*(cpu: var CPU) = ...
-# proc opSLO_absY*(cpu: var CPU) = ...
-# proc opSLO_absX*(cpu: var CPU) = ...
-# proc opASL_zpX*(cpu: var CPU) = ...
-# proc opNOP_zpX*(cpu: var CPU) = ...
-# proc opORA_zpX*(cpu: var CPU) = ...
-# proc opNOP_zp*(cpu: var CPU) = ...
-# proc opBPL*(cpu: var CPU) = ... # Example, might be generic already
-# proc opORA_indirectY*(cpu: var CPU) = ...
-# proc opORA_absY*(cpu: var CPU) = ...
-# proc opORA_absX*(cpu: var CPU) = ...
-# proc opASL_absX*(cpu: var CPU) = ...
-# proc opAND_21*(cpu: var CPU) = ...
-# proc opCLC*(cpu: var CPU) = ... # Example, might be generic already
-# proc opNOP_implied_1A*(cpu: var CPU) = ...
+# proc opASL_abs*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_abs*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_indirectY*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_zpX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_absY*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opSLO_absX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opASL_zpX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opNOP_zpX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opORA_zpX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opNOP_zp*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opBPL*(cpu: var CPU, info: OpcodeInfo) = ... # Example, might be generic already
+# proc opORA_indirectY*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opORA_absY*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opORA_absX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opASL_absX*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opAND_21*(cpu: var CPU, info: OpcodeInfo) = ...
+# proc opCLC*(cpu: var CPU, info: OpcodeInfo) = ... # Example, might be generic already
+# proc opNOP_implied_1A*(cpu: var CPU, info: OpcodeInfo) = ...
 # --- End of Old Specific Handlers ---
 
 
-proc opDEY*(cpu: var CPU) =
+proc opDEY*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for DEY (Decrement Y Register) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -709,7 +645,7 @@ proc opDEY*(cpu: var CPU) =
   raise err
 
 
-proc opTXA*(cpu: var CPU) =
+proc opTXA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for TXA (Transfer X to Accumulator) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -720,7 +656,7 @@ proc opTXA*(cpu: var CPU) =
   raise err
 
 
-proc opBCC*(cpu: var CPU) =
+proc opBCC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for BCC (Branch if Carry Clear) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -731,7 +667,7 @@ proc opBCC*(cpu: var CPU) =
   raise err
 
 
-proc opTYA*(cpu: var CPU) =
+proc opTYA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for TYA (Transfer Y to Accumulator) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -742,7 +678,7 @@ proc opTYA*(cpu: var CPU) =
   raise err
 
 
-proc opTXS*(cpu: var CPU) =
+proc opTXS*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for TXS (Transfer X to Stack Pointer) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -753,7 +689,7 @@ proc opTXS*(cpu: var CPU) =
   raise err
 
 
-proc opTAY*(cpu: var CPU) =
+proc opTAY*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for TAY (Transfer Accumulator to Y) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -764,7 +700,7 @@ proc opTAY*(cpu: var CPU) =
   raise err
 
 
-proc opTAX(cpu: var CPU) =
+proc opTAX(cpu: var CPU, info: OpcodeInfo) =
   ## Generic TAX handler (Transfer Accumulator to X).
   ## Action: X = A
   let instruction = cpu.memory[cpu.PC] # Fetch instruction (e.g., 0xAA)
@@ -780,7 +716,7 @@ proc opTAX(cpu: var CPU) =
   opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
-proc opBCS*(cpu: var CPU) =
+proc opBCS*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for BCS (Branch if Carry Set) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -791,7 +727,7 @@ proc opBCS*(cpu: var CPU) =
   raise err
 
 
-proc opCLV*(cpu: var CPU) =
+proc opCLV*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for CLV (Clear Overflow Flag) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -802,7 +738,7 @@ proc opCLV*(cpu: var CPU) =
   raise err
 
 
-proc opTSX*(cpu: var CPU) =
+proc opTSX*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for TSX (Transfer Stack Pointer to X) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -813,7 +749,7 @@ proc opTSX*(cpu: var CPU) =
   raise err
 
 
-proc opCPY*(cpu: var CPU) =
+proc opCPY*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for CPY (Compare Y Register) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -824,7 +760,7 @@ proc opCPY*(cpu: var CPU) =
   raise err
 
 
-proc opCMP*(cpu: var CPU) =
+proc opCMP*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for CMP (Compare Accumulator) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -835,7 +771,7 @@ proc opCMP*(cpu: var CPU) =
   raise err
 
 
-proc opDEC*(cpu: var CPU) =
+proc opDEC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for DEC (Decrement Memory) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -846,7 +782,7 @@ proc opDEC*(cpu: var CPU) =
   raise err
 
 
-proc opINY*(cpu: var CPU) =
+proc opINY*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for INY (Increment Y Register) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -857,7 +793,7 @@ proc opINY*(cpu: var CPU) =
   raise err
 
 
-proc opDEX*(cpu: var CPU) =
+proc opDEX*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for DEX (Decrement X Register) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -868,7 +804,7 @@ proc opDEX*(cpu: var CPU) =
   raise err
 
 
-proc opCLD*(cpu: var CPU) =
+proc opCLD*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for CLD (Clear Decimal Mode) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -879,7 +815,7 @@ proc opCLD*(cpu: var CPU) =
   raise err
 
 
-proc opCPX*(cpu: var CPU) =
+proc opCPX*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for CPX (Compare X Register) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -890,7 +826,7 @@ proc opCPX*(cpu: var CPU) =
   raise err
 
 
-proc opSBC*(cpu: var CPU) =
+proc opSBC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SBC (Subtract with Carry) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -901,7 +837,7 @@ proc opSBC*(cpu: var CPU) =
   raise err
 
 
-proc opINC*(cpu: var CPU) =
+proc opINC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for INC (Increment Memory) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -912,7 +848,7 @@ proc opINC*(cpu: var CPU) =
   raise err
 
 
-proc opSED*(cpu: var CPU) =
+proc opSED*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SED (Set Decimal Flag) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -923,7 +859,7 @@ proc opSED*(cpu: var CPU) =
   raise err
 
 
-proc opRLA*(cpu: var CPU) =
+proc opRLA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for RLA (Rotate Left then AND) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -934,7 +870,7 @@ proc opRLA*(cpu: var CPU) =
   raise err
 
 
-proc opSRE*(cpu: var CPU) =
+proc opSRE*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SRE (Shift Right then EOR) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -945,7 +881,7 @@ proc opSRE*(cpu: var CPU) =
   raise err
 
 
-proc opALR*(cpu: var CPU) =
+proc opALR*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for ALR (AND then LSR) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -956,7 +892,7 @@ proc opALR*(cpu: var CPU) =
   raise err
 
 
-proc opRRA*(cpu: var CPU) =
+proc opRRA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for RRA (Rotate Right then Add with Carry) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -967,7 +903,7 @@ proc opRRA*(cpu: var CPU) =
   raise err
 
 
-proc opARR*(cpu: var CPU) =
+proc opARR*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for ARR (AND then ROR) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -978,7 +914,7 @@ proc opARR*(cpu: var CPU) =
   raise err
 
 
-proc opAXS*(cpu: var CPU) =
+proc opAXS*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for AXS (AND X then SUB) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -989,7 +925,7 @@ proc opAXS*(cpu: var CPU) =
   raise err
 
 
-proc opXAA*(cpu: var CPU) =
+proc opXAA*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for XAA (Transfer X to A then AND) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1000,7 +936,7 @@ proc opXAA*(cpu: var CPU) =
   raise err
 
 
-proc opTAS*(cpu: var CPU) =
+proc opTAS*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for TAS (SHA/AHX variant) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1011,7 +947,7 @@ proc opTAS*(cpu: var CPU) =
   raise err
 
 
-proc opSHY*(cpu: var CPU) =
+proc opSHY*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SHY (SYA) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1022,7 +958,7 @@ proc opSHY*(cpu: var CPU) =
   raise err
 
 
-proc opSHX*(cpu: var CPU) =
+proc opSHX*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for SHX (SXA) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1033,7 +969,7 @@ proc opSHX*(cpu: var CPU) =
   raise err
 
 
-proc opLAX*(cpu: var CPU) =
+proc opLAX*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for LAX (Load A and X) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1044,7 +980,7 @@ proc opLAX*(cpu: var CPU) =
   raise err
 
 
-proc opLAS*(cpu: var CPU) =
+proc opLAS*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for LAS (Load A, X, S from Memory AND SP) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1055,7 +991,7 @@ proc opLAS*(cpu: var CPU) =
   raise err
 
 
-proc opDCP*(cpu: var CPU) =
+proc opDCP*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for DCP (Decrement Memory then Compare) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1066,7 +1002,7 @@ proc opDCP*(cpu: var CPU) =
   raise err
 
 
-proc opISC*(cpu: var CPU) =
+proc opISC*(cpu: var CPU, info: OpcodeInfo) =
   ## Stub for ISC (Increment Memory then Subtract with Carry) - Not Implemented
   let instruction = cpu.memory[cpu.PC]
   let err = UnimplementedOpcodeError(
@@ -1087,58 +1023,58 @@ proc setupOpcodeTable*() =
 
   # Official Opcodes
   opcodeTable[0x00] = OpcodeInfo(fixedCycles: true, handler: opBRK, cycles: 7, mode: implied, mnemonic: "BRK")
-  opcodeTable[0x01] = OpcodeInfo(fixedCycles: true, handler: opORA, cycles: 6, mode: indirectX, mnemonic: "ORA")
-  opcodeTable[0x05] = OpcodeInfo(fixedCycles: true, handler: opORA, cycles: 3, mode: zeroPage, mnemonic: "ORA")
+  opcodeTable[0x01] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 6, mode: indirectX, mnemonic: "ORA")
+  opcodeTable[0x05] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 3, mode: zeroPage, mnemonic: "ORA")
   opcodeTable[0x06] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 5, mode: zeroPage, mnemonic: "ASL")
   opcodeTable[0x08] = OpcodeInfo(fixedCycles: true, handler: opPHP, cycles: 3, mode: implied, mnemonic: "PHP")
-  opcodeTable[0x09] = OpcodeInfo(fixedCycles: true, handler: opORA, cycles: 2, mode: immediate, mnemonic: "ORA")
+  opcodeTable[0x09] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 2, mode: immediate, mnemonic: "ORA")
   opcodeTable[0x0A] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 2, mode: accumulator, mnemonic: "ASL")
-  opcodeTable[0x0D] = OpcodeInfo(fixedCycles: true, handler: opORA, cycles: 4, mode: absolute, mnemonic: "ORA")
+  opcodeTable[0x0D] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 4, mode: absolute, mnemonic: "ORA")
   opcodeTable[0x0E] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 6, mode: absolute, mnemonic: "ASL")
   opcodeTable[0x10] = OpcodeInfo(fixedCycles: false, handler: opBPL, cycles: 2, mode: relative, mnemonic: "BPL") # 2++
-  opcodeTable[0x11] = OpcodeInfo(fixedCycles: false, handler: opORA, cycles: 5, mode: indirectY, mnemonic: "ORA") # 5+
-  opcodeTable[0x15] = OpcodeInfo(fixedCycles: true, handler: opORA, cycles: 4, mode: zeroPageX, mnemonic: "ORA")
+  opcodeTable[0x11] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opORA, cycles: 5, mode: indirectY, mnemonic: "ORA") # 5+
+  opcodeTable[0x15] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opORA, cycles: 4, mode: zeroPageX, mnemonic: "ORA")
   opcodeTable[0x16] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 6, mode: zeroPageX, mnemonic: "ASL")
   opcodeTable[0x18] = OpcodeInfo(fixedCycles: true, handler: opCLC, cycles: 2, mode: implied, mnemonic: "CLC")
-  opcodeTable[0x19] = OpcodeInfo(fixedCycles: false, handler: opORA, cycles: 4, mode: absoluteY, mnemonic: "ORA") # 4+
-  opcodeTable[0x1D] = OpcodeInfo(fixedCycles: false, handler: opORA, cycles: 4, mode: absoluteX, mnemonic: "ORA") # 4+
+  opcodeTable[0x19] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opORA, cycles: 4, mode: absoluteY, mnemonic: "ORA") # 4+
+  opcodeTable[0x1D] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opORA, cycles: 4, mode: absoluteX, mnemonic: "ORA") # 4+
   opcodeTable[0x1E] = OpcodeInfo(fixedCycles: true, handler: opASL, cycles: 7, mode: absoluteX, mnemonic: "ASL")
   opcodeTable[0x20] = OpcodeInfo(fixedCycles: true, handler: opJSR, cycles: 6, mode: absolute, mnemonic: "JSR")
-  opcodeTable[0x21] = OpcodeInfo(fixedCycles: true, handler: opAND, cycles: 6, mode: indirectX, mnemonic: "AND")
+  opcodeTable[0x21] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 6, mode: indirectX, mnemonic: "AND")
   opcodeTable[0x24] = OpcodeInfo(fixedCycles: true, handler: opBIT, cycles: 3, mode: zeroPage, mnemonic: "BIT")
-  opcodeTable[0x25] = OpcodeInfo(fixedCycles: true, handler: opAND, cycles: 3, mode: zeroPage, mnemonic: "AND")
+  opcodeTable[0x25] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 3, mode: zeroPage, mnemonic: "AND")
   opcodeTable[0x26] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 5, mode: zeroPage, mnemonic: "ROL")
   opcodeTable[0x28] = OpcodeInfo(fixedCycles: true, handler: opPLP, cycles: 4, mode: implied, mnemonic: "PLP")
-  opcodeTable[0x29] = OpcodeInfo(fixedCycles: true, handler: opAND, cycles: 2, mode: immediate, mnemonic: "AND")
+  opcodeTable[0x29] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 2, mode: immediate, mnemonic: "AND")
   opcodeTable[0x2A] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 2, mode: accumulator, mnemonic: "ROL")
   opcodeTable[0x2C] = OpcodeInfo(fixedCycles: true, handler: opBIT, cycles: 4, mode: absolute, mnemonic: "BIT")
-  opcodeTable[0x2D] = OpcodeInfo(fixedCycles: true, handler: opAND, cycles: 4, mode: absolute, mnemonic: "AND")
+  opcodeTable[0x2D] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 4, mode: absolute, mnemonic: "AND")
   opcodeTable[0x2E] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 6, mode: absolute, mnemonic: "ROL")
   opcodeTable[0x30] = OpcodeInfo(fixedCycles: false, handler: opBMI, cycles: 2, mode: relative, mnemonic: "BMI") # 2++
-  opcodeTable[0x31] = OpcodeInfo(fixedCycles: false, handler: opAND, cycles: 5, mode: indirectY, mnemonic: "AND") # 5+
-  opcodeTable[0x35] = OpcodeInfo(fixedCycles: true, handler: opAND, cycles: 4, mode: zeroPageX, mnemonic: "AND")
+  opcodeTable[0x31] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opAND, cycles: 5, mode: indirectY, mnemonic: "AND") # 5+
+  opcodeTable[0x35] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opAND, cycles: 4, mode: zeroPageX, mnemonic: "AND")
   opcodeTable[0x36] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 6, mode: zeroPageX, mnemonic: "ROL")
   opcodeTable[0x38] = OpcodeInfo(fixedCycles: true, handler: opSEC, cycles: 2, mode: implied, mnemonic: "SEC")
-  opcodeTable[0x39] = OpcodeInfo(fixedCycles: false, handler: opAND, cycles: 4, mode: absoluteY, mnemonic: "AND") # 4+
-  opcodeTable[0x3D] = OpcodeInfo(fixedCycles: false, handler: opAND, cycles: 4, mode: absoluteX, mnemonic: "AND") # 4+
+  opcodeTable[0x39] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opAND, cycles: 4, mode: absoluteY, mnemonic: "AND") # 4+
+  opcodeTable[0x3D] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opAND, cycles: 4, mode: absoluteX, mnemonic: "AND") # 4+
   opcodeTable[0x3E] = OpcodeInfo(fixedCycles: true, handler: opROL, cycles: 7, mode: absoluteX, mnemonic: "ROL")
   opcodeTable[0x40] = OpcodeInfo(fixedCycles: true, handler: opRTI, cycles: 6, mode: implied, mnemonic: "RTI")
-  opcodeTable[0x41] = OpcodeInfo(fixedCycles: true, handler: opEOR, cycles: 6, mode: indirectX, mnemonic: "EOR")
-  opcodeTable[0x45] = OpcodeInfo(fixedCycles: true, handler: opEOR, cycles: 3, mode: zeroPage, mnemonic: "EOR")
+  opcodeTable[0x41] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 6, mode: indirectX, mnemonic: "EOR")
+  opcodeTable[0x45] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 3, mode: zeroPage, mnemonic: "EOR")
   opcodeTable[0x46] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 5, mode: zeroPage, mnemonic: "LSR")
   opcodeTable[0x48] = OpcodeInfo(fixedCycles: true, handler: opPHA, cycles: 3, mode: implied, mnemonic: "PHA")
-  opcodeTable[0x49] = OpcodeInfo(fixedCycles: true, handler: opEOR, cycles: 2, mode: immediate, mnemonic: "EOR")
+  opcodeTable[0x49] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 2, mode: immediate, mnemonic: "EOR")
   opcodeTable[0x4A] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 2, mode: accumulator, mnemonic: "LSR")
   opcodeTable[0x4C] = OpcodeInfo(fixedCycles: true, handler: opJMP, cycles: 3, mode: absolute, mnemonic: "JMP")
-  opcodeTable[0x4D] = OpcodeInfo(fixedCycles: true, handler: opEOR, cycles: 4, mode: absolute, mnemonic: "EOR")
+  opcodeTable[0x4D] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 4, mode: absolute, mnemonic: "EOR")
   opcodeTable[0x4E] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 6, mode: absolute, mnemonic: "LSR")
   opcodeTable[0x50] = OpcodeInfo(fixedCycles: false, handler: opBVC, cycles: 2, mode: relative, mnemonic: "BVC") # 2++
-  opcodeTable[0x51] = OpcodeInfo(fixedCycles: false, handler: opEOR, cycles: 5, mode: indirectY, mnemonic: "EOR") # 5+
-  opcodeTable[0x55] = OpcodeInfo(fixedCycles: true, handler: opEOR, cycles: 4, mode: zeroPageX, mnemonic: "EOR")
+  opcodeTable[0x51] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opEOR, cycles: 5, mode: indirectY, mnemonic: "EOR") # 5+
+  opcodeTable[0x55] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opEOR, cycles: 4, mode: zeroPageX, mnemonic: "EOR")
   opcodeTable[0x56] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 6, mode: zeroPageX, mnemonic: "LSR")
   opcodeTable[0x58] = OpcodeInfo(fixedCycles: true, handler: opCLI, cycles: 2, mode: implied, mnemonic: "CLI")
-  opcodeTable[0x59] = OpcodeInfo(fixedCycles: false, handler: opEOR, cycles: 4, mode: absoluteY, mnemonic: "EOR") # 4+
-  opcodeTable[0x5D] = OpcodeInfo(fixedCycles: false, handler: opEOR, cycles: 4, mode: absoluteX, mnemonic: "EOR") # 4+
+  opcodeTable[0x59] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opEOR, cycles: 4, mode: absoluteY, mnemonic: "EOR") # 4+
+  opcodeTable[0x5D] = OpcodeInfo(fixedCycles: false, handler: opcodes.logical.opEOR, cycles: 4, mode: absoluteX, mnemonic: "EOR") # 4+
   opcodeTable[0x5E] = OpcodeInfo(fixedCycles: true, handler: opLSR, cycles: 7, mode: absoluteX, mnemonic: "LSR")
   opcodeTable[0x60] = OpcodeInfo(fixedCycles: true, handler: opRTS, cycles: 6, mode: implied, mnemonic: "RTS")
   opcodeTable[0x61] = OpcodeInfo(fixedCycles: true, handler: opADC, cycles: 6, mode: indirectX, mnemonic: "ADC")
@@ -1243,7 +1179,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x03] = OpcodeInfo(fixedCycles: true, handler: opSLO, cycles: 8, mode: indirectX, mnemonic: "SLO")
   opcodeTable[0x04] = OpcodeInfo(fixedCycles: true, handler: opNOP, cycles: 3, mode: zeroPage, mnemonic: "NOP") # DOP
   opcodeTable[0x07] = OpcodeInfo(fixedCycles: true, handler: opSLO, cycles: 5, mode: zeroPage, mnemonic: "SLO")
-  opcodeTable[0x0B] = OpcodeInfo(fixedCycles: true, handler: opANC, cycles: 2, mode: immediate, mnemonic: "ANC")
+  opcodeTable[0x0B] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opANC, cycles: 2, mode: immediate, mnemonic: "ANC")
   opcodeTable[0x0C] = OpcodeInfo(fixedCycles: true, handler: opNOP, cycles: 4, mode: absolute, mnemonic: "NOP") # TOP
   opcodeTable[0x0F] = OpcodeInfo(fixedCycles: true, handler: opSLO, cycles: 6, mode: absolute, mnemonic: "SLO")
   opcodeTable[0x12] = OpcodeInfo(fixedCycles: true, handler: opKIL, cycles: 2, mode: implied, mnemonic: "KIL")
@@ -1257,7 +1193,7 @@ proc setupOpcodeTable*() =
   opcodeTable[0x22] = OpcodeInfo(fixedCycles: true, handler: opKIL, cycles: 2, mode: implied, mnemonic: "KIL")
   opcodeTable[0x23] = OpcodeInfo(fixedCycles: true, handler: opRLA, cycles: 8, mode: indirectX, mnemonic: "RLA")
   opcodeTable[0x27] = OpcodeInfo(fixedCycles: true, handler: opRLA, cycles: 5, mode: zeroPage, mnemonic: "RLA")
-  opcodeTable[0x2B] = OpcodeInfo(fixedCycles: true, handler: opANC, cycles: 2, mode: immediate, mnemonic: "ANC") # Same as 0B
+  opcodeTable[0x2B] = OpcodeInfo(fixedCycles: true, handler: opcodes.logical.opANC, cycles: 2, mode: immediate, mnemonic: "ANC") # Same as 0B
   opcodeTable[0x2F] = OpcodeInfo(fixedCycles: true, handler: opRLA, cycles: 6, mode: absolute, mnemonic: "RLA")
   opcodeTable[0x32] = OpcodeInfo(fixedCycles: true, handler: opKIL, cycles: 2, mode: implied, mnemonic: "KIL")
   opcodeTable[0x33] = OpcodeInfo(fixedCycles: true, handler: opRLA, cycles: 8, mode: indirectY, mnemonic: "RLA")
