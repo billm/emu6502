@@ -6,6 +6,8 @@ import strutils
 import stack
 import memory
 import flags
+import opcode_utils
+
 
 export types.CPU
 export types.OperatorMode, types.OpcodeHandler, types.OpcodeInfo
@@ -14,65 +16,14 @@ var opcodeTable*: array[256, OpcodeInfo]
 
 # Helper Procedures
 
-proc updateZNFlags*(cpu: var CPU, value: uint8) =
-  ## Updates the Zero and Negative flags based on the provided value.
-  cpu.setZ(value)
-  cpu.setN(value)
-
-proc performORA*(cpu: var CPU, value: uint8) =
-  ## Performs the ORA operation (A = A | value) and updates Z/N flags.
-  cpu.A = cpu.A or value
-  cpu.updateZNFlags(cpu.A)
-
-proc performASL*(cpu: var CPU, value: uint8): uint8 =
-  ## Performs the ASL operation (value << 1), updates Carry flag, and returns the result.
-  cpu.C = (value and 0x80'u8) != 0 # Set Carry if bit 7 was set
-  result = value shl 1
-
-proc performASLOnMemory*(cpu: var CPU, address: uint16) =
-  ## Performs ASL on a memory location, updates memory, and sets Z/N flags.
-  let originalValue = cpu.memory[address]
-  let shiftedValue = cpu.performASL(originalValue)
-  cpu.memory[address] = shiftedValue
-  cpu.updateZNFlags(shiftedValue)
-
-proc fetchOperandValue(cpu: var CPU, info: OpcodeInfo, addrResult: AddressingResult): uint8 =
-  ## Fetches the operand value based on the addressing mode.
-  if info.mode == immediate:
-    addrResult.value
-  else:
-    cpu.memory[addrResult.address]
 
 
 
-proc handleBranch(cpu: var CPU, info: OpcodeInfo, result: AddressingResult, condition: bool) =
-  ## Handles the common logic for branch instructions.
-  let pcIncrement = uint16(result.operandBytes + 1)
-  let currentPC = cpu.PC
-  var cyclesToAdd = uint16(info.cycles)
-  var nextPC = currentPC + pcIncrement
 
-  if condition:
-    cyclesToAdd += 1 # Add 1 cycle penalty for taking the branch
 
-    # Check for page boundary crossing
-    let targetAddress = result.address
-    let pageCrossed = (currentPC + pcIncrement) div 256 != targetAddress div 256
-    if pageCrossed:
-      cyclesToAdd += 1 # Add additional cycle penalty for page cross
 
-    nextPC = targetAddress
 
-  cpu.cycles += cyclesToAdd
-  cpu.PC = nextPC
 
-proc updatePCAndCycles(cpu: var CPU, info: OpcodeInfo, result: AddressingResult) =
-  ## Updates the Program Counter and CPU cycles based on opcode info and addressing result.
-  cpu.PC += uint16(result.operandBytes + 1)
-  if info.fixedCycles:
-    cpu.cycles += uint16(info.cycles)
-  else:
-    cpu.cycles += uint16(info.cycles + result.extraCycles)
 
 # Generic Opcode Handlers 
 
@@ -94,16 +45,16 @@ proc opORA(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to operate on
-  let value = fetchOperandValue(cpu, info, result)
+  let value = opcode_utils.fetchOperandValue(cpu, info, result)
 
   # Perform ORA logic
   cpu.A = cpu.A or value
 
   # Update flags
-  cpu.updateZNFlags(cpu.A)
+  opcode_utils.updateZNFlags(cpu, cpu.A)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opLDA(cpu: var CPU) =
@@ -113,16 +64,16 @@ proc opLDA(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to operate on
-  let value = fetchOperandValue(cpu, info, result)
+  let value = opcode_utils.fetchOperandValue(cpu, info, result)
 
   # Perform LDA logic
   cpu.A = value
 
   # Update flags
-  cpu.updateZNFlags(cpu.A)
+  opcode_utils.updateZNFlags(cpu, cpu.A)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opSLO(cpu: var CPU) =
@@ -136,7 +87,7 @@ proc opSLO(cpu: var CPU) =
   let originalValue = cpu.memory[result.address]
 
   # Perform ASL (M = M << 1)
-  let shiftedValue = cpu.performASL(originalValue)
+  let shiftedValue = opcode_utils.performASL(cpu, originalValue)
 
   # Write shifted value back to memory
   cpu.memory[result.address] = shiftedValue
@@ -145,10 +96,10 @@ proc opSLO(cpu: var CPU) =
   cpu.A = cpu.A or shiftedValue
 
   # Update flags based on final Accumulator value
-  cpu.updateZNFlags(cpu.A)
+  opcode_utils.updateZNFlags(cpu, cpu.A)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opADC*(cpu: var CPU) =
@@ -169,16 +120,16 @@ proc opAND(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to operate on
-  let value = fetchOperandValue(cpu, info, result)
+  let value = opcode_utils.fetchOperandValue(cpu, info, result)
 
   # Perform AND logic
   cpu.A = cpu.A and value
 
   # Update flags
-  cpu.updateZNFlags(cpu.A)
+  opcode_utils.updateZNFlags(cpu, cpu.A)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opASL(cpu: var CPU) =
@@ -190,9 +141,9 @@ proc opASL(cpu: var CPU) =
   if info.mode == accumulator:
     # Accumulator Mode
     let originalValue = cpu.A
-    let shiftedValue = cpu.performASL(originalValue)
+    let shiftedValue = opcode_utils.performASL(cpu, originalValue)
     cpu.A = shiftedValue
-    cpu.updateZNFlags(shiftedValue)
+    opcode_utils.updateZNFlags(cpu, shiftedValue)
 
     cpu.PC += 1 # Accumulator mode is 1 byte
     cpu.cycles += uint16(info.cycles) # Accumulator mode always has fixed cycles for ASL (2 cycles)
@@ -201,12 +152,12 @@ proc opASL(cpu: var CPU) =
     # Memory Modes
     let result = resolveAddressingMode(cpu, info.mode)
     let originalValue = cpu.memory[result.address]
-    let shiftedValue = cpu.performASL(originalValue)
+    let shiftedValue = opcode_utils.performASL(cpu, originalValue)
 
     cpu.memory[result.address] = shiftedValue
-    cpu.updateZNFlags(shiftedValue)
+    opcode_utils.updateZNFlags(cpu, shiftedValue)
 
-    cpu.updatePCAndCycles(info, result)
+    opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opBIT(cpu: var CPU) =
@@ -216,7 +167,7 @@ proc opBIT(cpu: var CPU) =
   let info = opcodeTable[instruction] # Assumes mode is ZeroPage or Absolute
 
   let result = resolveAddressingMode(cpu, info.mode)
-  let value = fetchOperandValue(cpu, info, result)
+  let value = opcode_utils.fetchOperandValue(cpu, info, result)
 
   # Perform AND for Z flag
   let andResult = cpu.A and value
@@ -229,7 +180,7 @@ proc opBIT(cpu: var CPU) =
   cpu.V = (value and 0x40'u8) != 0
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 
@@ -238,7 +189,7 @@ proc opBEQ(cpu: var CPU) =
   let instruction = cpu.memory[cpu.PC]
   let info = opcodeTable[instruction] # Assumes mode is Relative
   let result = resolveAddressingMode(cpu, info.mode) # Gets relative offset
-  cpu.handleBranch(info, result, cpu.Z)
+  opcode_utils.handleBranch(cpu, info, result, cpu.Z)
 
 
 proc opBMI*(cpu: var CPU) =
@@ -257,7 +208,7 @@ proc opBNE(cpu: var CPU) =
   let instruction = cpu.memory[cpu.PC]
   let info = opcodeTable[instruction] # Assumes mode is Relative
   let result = resolveAddressingMode(cpu, info.mode) # Gets relative offset
-  cpu.handleBranch(info, result, not cpu.Z)
+  opcode_utils.handleBranch(cpu, info, result, not cpu.Z)
 
 
 proc opANC*(cpu: var CPU) =
@@ -275,13 +226,13 @@ proc opANC*(cpu: var CPU) =
   cpu.A = cpu.A and value
 
   # Update Z and N flags based on the result in A
-  cpu.updateZNFlags(cpu.A)
+  opcode_utils.updateZNFlags(cpu, cpu.A)
 
   # Set Carry flag based on the N flag (bit 7 of the result)
   cpu.C = cpu.N
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opBVC*(cpu: var CPU) =
@@ -371,7 +322,7 @@ proc opCLC(cpu: var CPU) =
   cpu.C = false
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
+  opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 proc opCLI*(cpu: var CPU) =
   ## Stub for CLI (Clear Interrupt Disable) - Not Implemented
@@ -409,10 +360,10 @@ proc opINX(cpu: var CPU) =
   cpu.X = cpu.X + 1 # Increment X with wraparound (standard '+' wraps for uint8)
 
   # Update flags
-  cpu.updateZNFlags(cpu.X) # Set Z and N based on the new value of X
+  opcode_utils.updateZNFlags(cpu, cpu.X) # Set Z and N based on the new value of X
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
+  opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
 proc opJMP*(cpu: var CPU) =
@@ -464,16 +415,16 @@ proc opLDX(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to load
-  let value = fetchOperandValue(cpu, info, result)
+  let value = opcode_utils.fetchOperandValue(cpu, info, result)
 
   # Perform LDX logic
   cpu.X = value
 
   # Update flags
-  cpu.updateZNFlags(cpu.X)
+  opcode_utils.updateZNFlags(cpu, cpu.X)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opLDY(cpu: var CPU) =
@@ -483,16 +434,16 @@ proc opLDY(cpu: var CPU) =
   let result = resolveAddressingMode(cpu, info.mode)
 
   # Fetch the value to load
-  let value = fetchOperandValue(cpu, info, result)
+  let value = opcode_utils.fetchOperandValue(cpu, info, result)
 
   # Perform LDY logic
   cpu.Y = value
 
   # Update flags
-  cpu.updateZNFlags(cpu.Y)
+  opcode_utils.updateZNFlags(cpu, cpu.Y)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opNOP*(cpu: var CPU) =
@@ -510,7 +461,7 @@ proc opNOP*(cpu: var CPU) =
   # NOP performs no action on registers or flags.
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opPLP*(cpu: var CPU) =
@@ -569,7 +520,7 @@ proc opPHP(cpu: var CPU) =
   push(cpu, statusToPush)
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
+  opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
 proc opROL*(cpu: var CPU) =
@@ -658,7 +609,7 @@ proc opSTA(cpu: var CPU) =
   cpu.memory[result.address] = cpu.A
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opSTX(cpu: var CPU) =
@@ -673,7 +624,7 @@ proc opSTX(cpu: var CPU) =
   cpu.memory[result.address] = cpu.X
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opSTY(cpu: var CPU) =
@@ -688,7 +639,7 @@ proc opSTY(cpu: var CPU) =
   cpu.memory[result.address] = cpu.Y
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, result)
+  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 # --- Placeholder for other generic handlers ---
@@ -823,10 +774,10 @@ proc opTAX(cpu: var CPU) =
   cpu.X = cpu.A
 
   # Update flags
-  cpu.updateZNFlags(cpu.X) # Set Z and N based on the new value of X
+  opcode_utils.updateZNFlags(cpu, cpu.X) # Set Z and N based on the new value of X
 
   # Update Program Counter and CPU cycles
-  cpu.updatePCAndCycles(info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
+  opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
 proc opBCS*(cpu: var CPU) =
