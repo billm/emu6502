@@ -1,4 +1,5 @@
 import opcodes/logical
+import opcodes/data_transfer
 import types
 import addressing
 import utils # For read16
@@ -41,23 +42,6 @@ proc opLSR*(cpu: var CPU, info: OpcodeInfo) =
 
 
 
-proc opLDA(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic LDA handler.
-  let instruction = cpu.memory[cpu.PC]
-  # let info = opcodeTable[instruction] # info is now passed as a parameter
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Fetch the value to operate on
-  let value = opcode_utils.fetchOperandValue(cpu, info, result)
-
-  # Perform LDA logic
-  cpu.A = value
-
-  # Update flags
-  opcode_utils.updateZNFlags(cpu, cpu.A)
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opSLO(cpu: var CPU, info: OpcodeInfo) =
@@ -344,42 +328,8 @@ proc opKIL*(cpu: var CPU, info: OpcodeInfo) =
   # No PC or cycle update needed as the CPU stops.
 
 
-proc opLDX(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic LDX handler (Load X Register).
-  let instruction = cpu.memory[cpu.PC]
-  # let info = opcodeTable[instruction] # info is now passed as a parameter
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Fetch the value to load
-  let value = opcode_utils.fetchOperandValue(cpu, info, result)
-
-  # Perform LDX logic
-  cpu.X = value
-
-  # Update flags
-  opcode_utils.updateZNFlags(cpu, cpu.X)
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opLDY(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic LDY handler (Load Y Register).
-  let instruction = cpu.memory[cpu.PC]
-  # let info = opcodeTable[instruction] # info is now passed as a parameter
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Fetch the value to load
-  let value = opcode_utils.fetchOperandValue(cpu, info, result)
-
-  # Perform LDY logic
-  cpu.Y = value
-
-  # Update flags
-  opcode_utils.updateZNFlags(cpu, cpu.Y)
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 proc opNOP*(cpu: var CPU, info: OpcodeInfo) =
@@ -533,49 +483,10 @@ proc opSEI*(cpu: var CPU, info: OpcodeInfo) =
   raise err
 
 
-proc opSTA(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic STA handler (Store Accumulator in Memory).
-  ## Action: M = A
-  let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
-  # STA does not use Immediate mode, only memory addressing modes.
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Perform STA logic: Write Accumulator to the resolved address
-  cpu.memory[result.address] = cpu.A
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opSTX(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic STX handler (Store X Register in Memory).
-  ## Action: M = X
-  let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
-  # STX does not use Immediate mode, only memory addressing modes.
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Perform STX logic: Write X register to the resolved address
-  cpu.memory[result.address] = cpu.X
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
-proc opSTY(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic STY handler (Store Y Register in Memory).
-  ## Action: M = Y
-  let instruction = cpu.memory[cpu.PC]
-  let info = opcodeTable[instruction]
-  # STY uses ZeroPage, ZeroPageX, Absolute modes.
-  let result = resolveAddressingMode(cpu, info.mode)
-
-  # Perform STY logic: Write Y register to the resolved address
-  cpu.memory[result.address] = cpu.Y
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, result)
 
 
 # --- Placeholder for other generic handlers ---
@@ -700,20 +611,6 @@ proc opTAY*(cpu: var CPU, info: OpcodeInfo) =
   raise err
 
 
-proc opTAX(cpu: var CPU, info: OpcodeInfo) =
-  ## Generic TAX handler (Transfer Accumulator to X).
-  ## Action: X = A
-  let instruction = cpu.memory[cpu.PC] # Fetch instruction (e.g., 0xAA)
-  let info = opcodeTable[instruction] # Get info (mainly for cycles)
-
-  # Perform TAX logic
-  cpu.X = cpu.A
-
-  # Update flags
-  opcode_utils.updateZNFlags(cpu, cpu.X) # Set Z and N based on the new value of X
-
-  # Update Program Counter and CPU cycles
-  opcode_utils.updatePCAndCycles(cpu, info, AddressingResult(operandBytes: 0, extraCycles: 0)) # Implied mode has 0 operand bytes and 0 extra cycles
 
 
 proc opBCS*(cpu: var CPU, info: OpcodeInfo) =
@@ -1094,47 +991,47 @@ proc setupOpcodeTable*() =
   opcodeTable[0x79] = OpcodeInfo(fixedCycles: false, handler: opADC, cycles: 4, mode: absoluteY, mnemonic: "ADC") # 4+
   opcodeTable[0x7D] = OpcodeInfo(fixedCycles: false, handler: opADC, cycles: 4, mode: absoluteX, mnemonic: "ADC") # 4+
   opcodeTable[0x7E] = OpcodeInfo(fixedCycles: true, handler: opROR, cycles: 7, mode: absoluteX, mnemonic: "ROR")
-  opcodeTable[0x81] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 6, mode: indirectX, mnemonic: "STA")
-  opcodeTable[0x84] = OpcodeInfo(fixedCycles: true, handler: opSTY, cycles: 3, mode: zeroPage, mnemonic: "STY")
-  opcodeTable[0x85] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 3, mode: zeroPage, mnemonic: "STA")
-  opcodeTable[0x86] = OpcodeInfo(fixedCycles: true, handler: opSTX, cycles: 3, mode: zeroPage, mnemonic: "STX")
+  opcodeTable[0x81] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 6, mode: indirectX, mnemonic: "STA")
+  opcodeTable[0x84] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTY, cycles: 3, mode: zeroPage, mnemonic: "STY")
+  opcodeTable[0x85] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 3, mode: zeroPage, mnemonic: "STA")
+  opcodeTable[0x86] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTX, cycles: 3, mode: zeroPage, mnemonic: "STX")
   opcodeTable[0x88] = OpcodeInfo(fixedCycles: true, handler: opDEY, cycles: 2, mode: implied, mnemonic: "DEY")
   opcodeTable[0x8A] = OpcodeInfo(fixedCycles: true, handler: opTXA, cycles: 2, mode: implied, mnemonic: "TXA")
-  opcodeTable[0x8C] = OpcodeInfo(fixedCycles: true, handler: opSTY, cycles: 4, mode: absolute, mnemonic: "STY")
-  opcodeTable[0x8D] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 4, mode: absolute, mnemonic: "STA")
-  opcodeTable[0x8E] = OpcodeInfo(fixedCycles: true, handler: opSTX, cycles: 4, mode: absolute, mnemonic: "STX")
+  opcodeTable[0x8C] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTY, cycles: 4, mode: absolute, mnemonic: "STY")
+  opcodeTable[0x8D] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 4, mode: absolute, mnemonic: "STA")
+  opcodeTable[0x8E] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTX, cycles: 4, mode: absolute, mnemonic: "STX")
   opcodeTable[0x90] = OpcodeInfo(fixedCycles: false, handler: opBCC, cycles: 2, mode: relative, mnemonic: "BCC") # 2++
-  opcodeTable[0x91] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 6, mode: indirectY, mnemonic: "STA")
-  opcodeTable[0x94] = OpcodeInfo(fixedCycles: true, handler: opSTY, cycles: 4, mode: zeroPageX, mnemonic: "STY")
-  opcodeTable[0x95] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 4, mode: zeroPageX, mnemonic: "STA")
-  opcodeTable[0x96] = OpcodeInfo(fixedCycles: true, handler: opSTX, cycles: 4, mode: zeroPageY, mnemonic: "STX")
+  opcodeTable[0x91] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 6, mode: indirectY, mnemonic: "STA")
+  opcodeTable[0x94] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTY, cycles: 4, mode: zeroPageX, mnemonic: "STY")
+  opcodeTable[0x95] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 4, mode: zeroPageX, mnemonic: "STA")
+  opcodeTable[0x96] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTX, cycles: 4, mode: zeroPageY, mnemonic: "STX")
   opcodeTable[0x98] = OpcodeInfo(fixedCycles: true, handler: opTYA, cycles: 2, mode: implied, mnemonic: "TYA")
-  opcodeTable[0x99] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 5, mode: absoluteY, mnemonic: "STA")
+  opcodeTable[0x99] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 5, mode: absoluteY, mnemonic: "STA")
   opcodeTable[0x9A] = OpcodeInfo(fixedCycles: true, handler: opTXS, cycles: 2, mode: implied, mnemonic: "TXS")
-  opcodeTable[0x9D] = OpcodeInfo(fixedCycles: true, handler: opSTA, cycles: 5, mode: absoluteX, mnemonic: "STA")
-  opcodeTable[0xA0] = OpcodeInfo(fixedCycles: true, handler: opLDY, cycles: 2, mode: immediate, mnemonic: "LDY")
-  opcodeTable[0xA1] = OpcodeInfo(fixedCycles: true, handler: opLDA, cycles: 6, mode: indirectX, mnemonic: "LDA")
-  opcodeTable[0xA2] = OpcodeInfo(fixedCycles: true, handler: opLDX, cycles: 2, mode: immediate, mnemonic: "LDX")
-  opcodeTable[0xA4] = OpcodeInfo(fixedCycles: true, handler: opLDY, cycles: 3, mode: zeroPage, mnemonic: "LDY")
-  opcodeTable[0xA5] = OpcodeInfo(fixedCycles: true, handler: opLDA, cycles: 3, mode: zeroPage, mnemonic: "LDA")
-  opcodeTable[0xA6] = OpcodeInfo(fixedCycles: true, handler: opLDX, cycles: 3, mode: zeroPage, mnemonic: "LDX")
+  opcodeTable[0x9D] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opSTA, cycles: 5, mode: absoluteX, mnemonic: "STA")
+  opcodeTable[0xA0] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDY, cycles: 2, mode: immediate, mnemonic: "LDY")
+  opcodeTable[0xA1] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDA, cycles: 6, mode: indirectX, mnemonic: "LDA")
+  opcodeTable[0xA2] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDX, cycles: 2, mode: immediate, mnemonic: "LDX")
+  opcodeTable[0xA4] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDY, cycles: 3, mode: zeroPage, mnemonic: "LDY")
+  opcodeTable[0xA5] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDA, cycles: 3, mode: zeroPage, mnemonic: "LDA")
+  opcodeTable[0xA6] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDX, cycles: 3, mode: zeroPage, mnemonic: "LDX")
   opcodeTable[0xA8] = OpcodeInfo(fixedCycles: true, handler: opTAY, cycles: 2, mode: implied, mnemonic: "TAY")
-  opcodeTable[0xA9] = OpcodeInfo(fixedCycles: true, handler: opLDA, cycles: 2, mode: immediate, mnemonic: "LDA")
-  opcodeTable[0xAA] = OpcodeInfo(fixedCycles: true, handler: opTAX, cycles: 2, mode: implied, mnemonic: "TAX")
-  opcodeTable[0xAC] = OpcodeInfo(fixedCycles: true, handler: opLDY, cycles: 4, mode: absolute, mnemonic: "LDY")
-  opcodeTable[0xAD] = OpcodeInfo(fixedCycles: true, handler: opLDA, cycles: 4, mode: absolute, mnemonic: "LDA")
-  opcodeTable[0xAE] = OpcodeInfo(fixedCycles: true, handler: opLDX, cycles: 4, mode: absolute, mnemonic: "LDX")
+  opcodeTable[0xA9] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDA, cycles: 2, mode: immediate, mnemonic: "LDA")
+  opcodeTable[0xAA] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opTAX, cycles: 2, mode: implied, mnemonic: "TAX")
+  opcodeTable[0xAC] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDY, cycles: 4, mode: absolute, mnemonic: "LDY")
+  opcodeTable[0xAD] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDA, cycles: 4, mode: absolute, mnemonic: "LDA")
+  opcodeTable[0xAE] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDX, cycles: 4, mode: absolute, mnemonic: "LDX")
   opcodeTable[0xB0] = OpcodeInfo(fixedCycles: false, handler: opBCS, cycles: 2, mode: relative, mnemonic: "BCS") # 2++
-  opcodeTable[0xB1] = OpcodeInfo(fixedCycles: false, handler: opLDA, cycles: 5, mode: indirectY, mnemonic: "LDA") # 5+
-  opcodeTable[0xB4] = OpcodeInfo(fixedCycles: true, handler: opLDY, cycles: 4, mode: zeroPageX, mnemonic: "LDY")
-  opcodeTable[0xB5] = OpcodeInfo(fixedCycles: true, handler: opLDA, cycles: 4, mode: zeroPageX, mnemonic: "LDA")
-  opcodeTable[0xB6] = OpcodeInfo(fixedCycles: true, handler: opLDX, cycles: 4, mode: zeroPageY, mnemonic: "LDX")
+  opcodeTable[0xB1] = OpcodeInfo(fixedCycles: false, handler: data_transfer.opLDA, cycles: 5, mode: indirectY, mnemonic: "LDA") # 5+
+  opcodeTable[0xB4] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDY, cycles: 4, mode: zeroPageX, mnemonic: "LDY")
+  opcodeTable[0xB5] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDA, cycles: 4, mode: zeroPageX, mnemonic: "LDA")
+  opcodeTable[0xB6] = OpcodeInfo(fixedCycles: true, handler: data_transfer.opLDX, cycles: 4, mode: zeroPageY, mnemonic: "LDX")
   opcodeTable[0xB8] = OpcodeInfo(fixedCycles: true, handler: opCLV, cycles: 2, mode: implied, mnemonic: "CLV")
-  opcodeTable[0xB9] = OpcodeInfo(fixedCycles: false, handler: opLDA, cycles: 4, mode: absoluteY, mnemonic: "LDA") # 4+
+  opcodeTable[0xB9] = OpcodeInfo(fixedCycles: false, handler: data_transfer.opLDA, cycles: 4, mode: absoluteY, mnemonic: "LDA") # 4+
   opcodeTable[0xBA] = OpcodeInfo(fixedCycles: true, handler: opTSX, cycles: 2, mode: implied, mnemonic: "TSX")
-  opcodeTable[0xBC] = OpcodeInfo(fixedCycles: false, handler: opLDY, cycles: 4, mode: absoluteX, mnemonic: "LDY") # 4+
-  opcodeTable[0xBD] = OpcodeInfo(fixedCycles: false, handler: opLDA, cycles: 4, mode: absoluteX, mnemonic: "LDA") # 4+
-  opcodeTable[0xBE] = OpcodeInfo(fixedCycles: false, handler: opLDX, cycles: 4, mode: absoluteY, mnemonic: "LDX") # 4+
+  opcodeTable[0xBC] = OpcodeInfo(fixedCycles: false, handler: data_transfer.opLDY, cycles: 4, mode: absoluteX, mnemonic: "LDY") # 4+
+  opcodeTable[0xBD] = OpcodeInfo(fixedCycles: false, handler: data_transfer.opLDA, cycles: 4, mode: absoluteX, mnemonic: "LDA") # 4+
+  opcodeTable[0xBE] = OpcodeInfo(fixedCycles: false, handler: data_transfer.opLDX, cycles: 4, mode: absoluteY, mnemonic: "LDX") # 4+
   opcodeTable[0xC0] = OpcodeInfo(fixedCycles: true, handler: opCPY, cycles: 2, mode: immediate, mnemonic: "CPY")
   opcodeTable[0xC1] = OpcodeInfo(fixedCycles: true, handler: opCMP, cycles: 6, mode: indirectX, mnemonic: "CMP")
   opcodeTable[0xC4] = OpcodeInfo(fixedCycles: true, handler: opCPY, cycles: 3, mode: zeroPage, mnemonic: "CPY")
