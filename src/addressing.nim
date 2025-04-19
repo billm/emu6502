@@ -136,5 +136,11 @@ proc resolveAddressingMode*(cpu: var CPU, mode: OperatorMode): AddressingResult 
     result = resolveIndirectX(cpu)
   of indirectY:
     result = resolveIndirectY(cpu)
+  of implied:
+    discard # Should not be called for implied mode
+
+  of accumulator:
+    discard # Should not be called for accumulator mode
+
   of relative:
     result = resolveRelative(cpu) 

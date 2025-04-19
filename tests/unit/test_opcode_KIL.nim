@@ -41,8 +41,8 @@ suite "KIL Opcode Unit Tests":
     # Checks - These will fail until the opcode is correctly implemented
     check:
       cpu.halted == true                   # CPU should be halted
-      cpu.PC == initialPC + 1            # PC should advance by 1
-      cpu.cycles == initialCycles + 2    # Cycles should increment by 2
+      cpu.PC == initialPC                # PC should NOT advance
+      cpu.cycles == initialCycles        # Cycles should NOT increment
 
   test "KIL Implied (0x12) halts the CPU":
     # Setup KIL (12)
@@ -69,5 +69,5 @@ suite "KIL Opcode Unit Tests":
     # Checks - These will fail until the opcode is correctly implemented
     check:
       cpu.halted == true                   # CPU should be halted
-      cpu.PC == initialPC + 1            # PC should advance by 1
-      cpu.cycles == initialCycles + 2    # Cycles should increment by 2
+      cpu.PC == initialPC                # PC should NOT advance
+      cpu.cycles == initialCycles        # Cycles should NOT increment

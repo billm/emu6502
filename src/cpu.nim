@@ -5,6 +5,8 @@ import types
 import memory
 import opcodes
 import utils
+import flags
+
 
 export types.CPU
 export types.Memory
@@ -40,6 +42,13 @@ proc initialize*(cpu: var CPU, mem: Memory, PC: uint16) =
   cpu.X = 0x0
   cpu.Y = 0x0
   cpu.C = false
+  cpu.Z = false # Initialize Z flag
+  cpu.I = false # Initialize I flag (clear by default)
+  cpu.D = false # Initialize D flag
+  cpu.B = false # Initialize B flag
+  cpu.U = true  # Initialize U flag (unused, reads as 1)
+  cpu.V = false # Initialize V flag
+  cpu.N = false # Initialize N flag
   cpu.SP = 0xff
   cpu.PC = PC
   cpu.cycles = 0
@@ -64,8 +73,10 @@ proc step*(cpu: var CPU): bool =
 
   if info.handler == nil:
     raise UnimplementedOpcodeError(opcode: opcode, pc: cpu.PC, msg: &"Unimplemented opcode: {opcode.toHex} @ PC: 0x{cpu.PC.toHex}")
+  echo &"[DEBUG] BEFORE PC={cpu.PC.toHex(4)} OP={opcode.toHex(2)} A={cpu.A.toHex(2)} X={cpu.X.toHex(2)} Y={cpu.Y.toHex(2)} P={cpu.flags.toHex(2)} SP={cpu.SP.toHex(2)}"
 
   info.handler(cpu)
+  echo &"[DEBUG] AFTER  PC={cpu.PC.toHex(4)} OP={opcode.toHex(2)} A={cpu.A.toHex(2)} X={cpu.X.toHex(2)} Y={cpu.Y.toHex(2)} P={cpu.flags.toHex(2)} SP={cpu.SP.toHex(2)}"
   cpu.debug() # Optional: keep debug output per step
 
   # Check for halt conditions (like KIL or BRK not advancing PC)

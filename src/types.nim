@@ -29,4 +29,19 @@ type
 
   OperatorMode* = enum
     immediate, zeroPage, zeroPageX, zeroPageY, absolute, absoluteX, absoluteY,
+    implied, 
+    accumulator, 
     indirect, indirectX, indirectY, relative
+
+
+  OpcodeHandler* = proc(cpu: var CPU)
+
+  OpcodeInfo* = object
+    # Indicates if the cycle count is fixed and not affected by page crossing penalties.
+    # Common for unofficial opcodes or specific modes where cycles are invariant.
+    fixedCycles*: bool
+    handler*: OpcodeHandler
+    cycles*: int
+    mode*: OperatorMode
+    mnemonic*: string # For debugging/disassembly
+

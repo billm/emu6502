@@ -8,6 +8,12 @@ proc setZ*(cpu: var CPU, val: uint8) =
 proc setN*(cpu: var CPU, val: uint8) =
   cpu.N = (val and 0x80) != 0
 
+
+proc updateZNFlags*(cpu: var CPU, result: uint8) =
+  ## Updates the Zero (Z) and Negative (N) flags based on the result value.
+  cpu.Z = (result == 0)
+  cpu.N = (result and 0x80) != 0 # Check if bit 7 is set
+
 # Return a specific bit from provided uint8
 proc bit(val: uint8, bit: range[0..7]): bool =
   ((val shr bit) and 1) != 0
