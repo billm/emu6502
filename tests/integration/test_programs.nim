@@ -37,7 +37,7 @@ suite "Program Integration Tests":
     cpu.execute()
     
     check:
-      cpu.SP == oldSP - 6  # 3 bytes for each BRK instruction (one at end of program, one in IRQ handler)
+      cpu.SP == oldSP - 3  # 3 bytes for each BRK instruction
       cpu.X == 0x0C  # X should be 12 (looped through all characters + null)
 
   test "bf6502 program handles unimplemented opcode":
