@@ -107,7 +107,10 @@ proc opBRK*(cpu: var CPU, info: OpcodeInfo) =
   #    Using literals as requested, assuming IRQ_VECTOR_LOW/HIGH might not be defined/imported.
   let lowByte = cpu.memory[0xFFFE'u16]
   let highByte = cpu.memory[0xFFFF'u16]
-  cpu.PC = (uint16(highByte) shl 8) or uint16(lowByte)
+  echo "BRK Debug - IRQ Vector: $", toHex(0xFFFE'u16,4), "=", toHex(lowByte,2), " $", toHex(0xFFFF'u16,4), "=", toHex(highByte,2)
+  let newPC = (uint16(highByte) shl 8) or uint16(lowByte)
+  echo "BRK Debug - New PC: $", toHex(newPC,4)
+  cpu.PC = newPC
 
   # 6. Update CPU cycles (BRK always takes 7 cycles)
   cpu.cycles += uint16(info.cycles) # Use cycles from table (should be 7)

@@ -17,8 +17,8 @@ suite "BRK Opcode Unit Tests":
 
   test "BRK instruction works correctly":
     # Set up IRQ vector at 0xFFFE/FFFF to point to handler
-    mem.mem[0xFFFE] = 0x00'u8  # Low byte of IRQ vector
-    mem.mem[0xFFFF] = 0x80'u8  # IRQ handler at 0x8000
+    cpu.memory[0xFFFE'u16] = 0x00'u8  # Low byte of IRQ vector
+    cpu.memory[0xFFFF'u16] = 0x80'u8  # IRQ handler at 0x8000
     
     # Initial CPU state
     cpu.PC = 0x0300
@@ -29,17 +29,17 @@ suite "BRK Opcode Unit Tests":
     cpu.cycles = 0
     
     # Set up BRK instruction
-    mem.mem[0x0300] = 0x00'u8  # BRK opcode
+    cpu.memory[0x0300'u16] = 0x00'u8  # BRK opcode
     
     # Execute BRK 
-    let info = opcodeTable[mem.mem[cpu.PC].uint8]
+    let info = opcodeTable[cpu.memory[cpu.PC].uint8]
     info.handler(cpu, info)
     
     # Stack should contain PC+2 (high byte, low byte) and flags with B set
     let finalSP = cpu.SP.uint16 # Should be 0xFC
-    let stackedFlags = mem.mem[0x0100 + finalSP + 1] # Status at 0x01FD
-    let stackedPCLow = mem.mem[0x0100 + finalSP + 2] # PCL at 0x01FE
-    let stackedPCHigh = mem.mem[0x0100 + finalSP + 3] # PCH at 0x01FF
+    let stackedFlags = cpu.memory[0x0100'u16 + finalSP + 1] # Status at 0x01FD
+    let stackedPCLow = cpu.memory[0x0100'u16 + finalSP + 2] # PCL at 0x01FE
+    let stackedPCHigh = cpu.memory[0x0100'u16 + finalSP + 3] # PCH at 0x01FF
     
     check:
       # PC + 2 was pushed correctly
@@ -53,6 +53,6 @@ suite "BRK Opcode Unit Tests":
       # CPU state after BRK
       cpu.I == true           # Interrupt disable set
       cpu.B == false         # B not set in actual status
-      cpu.PC == 0x0300
-      cpu.SP == 0xFF'u8 - 3'u8  # Pushed 3 bytes
+      cpu.PC == 0x8000       # Should jump to IRQ handler
+      cpu.SP == 0xFC'u8      # Pushed 3 bytes (0xFF -> 0xFC)
       cpu.cycles == 7'u16    # BRK takes 7 cycles
